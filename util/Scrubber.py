@@ -1,34 +1,59 @@
 import csv
 
+#  subroutine
+def read_index(prompt):
+    while True:
+        user_input = input(prompt)
+        
+        if user_input.strip().isdigit():
+            return user_input
+        else:
+            print("Input type must be a number")
 
-def scrubData():
-    print("hi")
-    #  latitude, longitude, time dispatched, time arrived, reported as
-    file_name = input("Enter the name of your file ")
+#  subroutine
+def validate_line(line, params):
+    for param in params:
+        if line[int(param)] == " ":
+            return False
+    return True
+
+#  subroutine
+def build_output_line(lines, params):
+    output_line = []
+    for param in params:
+        output_line.append(lines[int(param)])
+    return output_line
+
+#  subroutine
+def get_params():
     params = []
 
     print("For each of following values, please enter the index in which they appear in a row in your CSV file. ") #  edit that sentence
-    reported_as = read("Index of type of crime / what it was reported as ")
+    reported_as = read_index("Index of type of event / reported as ")
     params.append(reported_as)
     question = input("Does your data contain 'zipcode' or 'latitude / longitude' ")
 
-    
-
-    #modularize that
-    if question == 'zipcode':
-        zipcode = read("index of zipcode ")
+    if question.strip() == 'zipcode':
+        zipcode = read_index("index of zipcode ")
         params.append(zipcode)
-    elif question == 'latitude / longitude':
-        latitude = read("Index of latitude ")
-        longitude = read("Index of longitude ")
+    elif question.strip() == 'latitude / longitude':
+        latitude = read_index("Index of latitude ")
+        longitude = read_index("Index of longitude ")
         params.append(latitude)
         params.append(longitude)
-    time_dispatched = read("Index of dispatch time. ")
-    time_arrived = read("Index of arrival time ")
+
+    time_dispatched = read_index("Index of dispatch time. ")
+    time_arrived = read_index("Index of arrival time ")
     params.append(time_dispatched)
     params.append(time_arrived)
+    return params;
 
-    print(params) 
+#  main function
+def scrubData():
+    #  latitude, longitude, time dispatched, time arrived, reported as
+    file_name = input("Enter the name of your file ")
+    file_name = file_name.strip()
+    params = get_params();
  
     output_file_name = file_name[:-4] + "_out.csv"
 
@@ -41,29 +66,3 @@ def scrubData():
                 with open(output_file_name, mode='a') as output_file:
                     csvwriter = csv.writer(output_file)
                     csvwriter.writerow(output_line)
-            
-
-def read(prompt):
-    while True:
-        user_input = input(prompt)
-
-        if user_input.isdigit():
-            return user_input
-        else:
-            print("Input type must be a number")
-
-def validate_line(line, params):
-    for param in params:
-        if line[int(param)] == " ":
-            return False
-    return True
-
-def build_output_line(lines, params):
-    output_line = []
-    for param in params:
-        output_line.append(lines[int(param)])
-    return output_line
-
-
-scrubData();
-
