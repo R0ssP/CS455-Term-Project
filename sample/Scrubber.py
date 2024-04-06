@@ -1,5 +1,3 @@
-import csv
-
 #  subroutine
 def read_index(prompt):
     while True:
@@ -9,22 +7,6 @@ def read_index(prompt):
             return user_input
         else:
             print("Input type must be a number")
-
-
-#  subroutine
-def validate_line(line, params):
-    for param in params:
-        if line[int(param)] == " ":
-            return False
-    return True
-
-
-#  subroutine
-def build_output_line(lines, params):
-    output_line = []
-    for param in params:
-        output_line.append(lines[int(param)])
-    return output_line
 
 
 #  subroutine
@@ -52,23 +34,7 @@ def get_params():
     return params;
 
 
-#  main function
-def scrubData():
-    #  latitude, longitude, time dispatched, time arrived, reported as
-    file_name = input("Enter the name of your file or the path if it is not in this directory ") #  NOTE - this assumes the file resides in the same directory
-    file_name = file_name.strip()
-    params = get_params();
- 
-    output_file_name = file_name[:-4] + "_out.csv"
-
-    with open(file_name, mode='r') as file:
-        csv_file = csv.reader(file)
-        for lines in csv_file:
-            valid = validate_line(lines, params)
-            if valid:
-                output_line = build_output_line(lines, params)
-                with open(output_file_name, mode='a') as output_file:
-                    csvwriter = csv.writer(output_file)
-                    csvwriter.writerow(output_line)
-
-scrubData()
+def scrub_colum_array(column_list, paramIndexArray):
+    for i in sorted(paramIndexArray, reverse=True):
+        del column_list[int(i)]
+    return column_list
