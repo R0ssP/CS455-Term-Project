@@ -4,6 +4,8 @@ sys.path.append(spark_python_path)
 import pyspark
 from pyspark.sql import Row
 from pyspark.sql import SparkSession
+from pyspark.sql.functions import col
+from functools import reduce
 from Scrubber import get_params, scrub_colum_array
 
 
@@ -27,3 +29,14 @@ for item in column_list:
     named_frame = named_frame.drop(item)
 
 named_frame.show(10)
+print(named_frame.count())
+
+column_list = named_frame.columns
+print(list(column_list))
+
+conditions = [col(column).isNotNull() for column in named_frame.columns]
+
+filtered_frame = named_frame.filter(reduce(lambda a, b: a & b, conditions))
+
+filtered_frame.show(10)
+print(filtered_frame.count())
