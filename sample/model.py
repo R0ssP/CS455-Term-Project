@@ -6,7 +6,7 @@ from pyspark.sql import Row
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col
 from functools import reduce
-from Scrubber import get_params, scrub_colum_array
+from Scrubber import get_params, scrub_colum_array, get_file
 
 
 spark = SparkSession.builder \
@@ -14,7 +14,7 @@ spark = SparkSession.builder \
 .appName('word_count')\
 .getOrCreate()
 
-named_frame = spark.read.csv("neworleans.csv", header=True) 
+named_frame = spark.read.csv(get_file(), header=True) 
 
 named_frame.show(10)
 
@@ -40,3 +40,13 @@ filtered_frame = named_frame.filter(reduce(lambda a, b: a & b, conditions))
 
 filtered_frame.show(10)
 print(filtered_frame.count())
+
+filtered_columns = list(filtered_frame.columns)
+
+
+
+
+
+
+
+# function(s) for creating logical grid
