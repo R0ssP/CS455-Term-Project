@@ -38,3 +38,8 @@ def scrub_colum_array(column_list, paramIndexArray):
     for i in sorted(paramIndexArray, reverse=True):
         del column_list[int(i)]
     return column_list
+
+
+def get_file():
+    file_name = input("Please enter the name / path of your file: ")
+    return file_name
