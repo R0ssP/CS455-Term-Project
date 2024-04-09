@@ -27,3 +27,13 @@ create that directory in hadoop using this command: $HADOOP_HOME/bin/hadoop fs -
 
 
 now you can experiment with spark
+
+
+
+## Helpful things:
+- *param info maybe*
+- New York City bounds:
+  - Furthest North: 40.9058° N.
+  - Furthest South: 40.5008° N.
+  - Furthest East: 71.8627° W.
+  - Furthest West: 74.2540° W.
