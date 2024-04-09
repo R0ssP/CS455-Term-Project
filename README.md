@@ -37,3 +37,4 @@ now you can experiment with spark
   - Furthest South: 40.5008° N.
   - Furthest East: 71.8627° W.
   - Furthest West: 74.2540° W.
+  - For the East/West ones remember to put a '-' before the longitude because it's West of the prime meridian
