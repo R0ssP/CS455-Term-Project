@@ -16,7 +16,7 @@
 
     5c. command to start spark workers $SPARK_HOME/sbin/start-workers.sh
 
-6. now try to run the sample .py, you should get an error saying that neworleans.txt is not in hdfs under a certain directory,
+6. now try to run the model .py, you should get an error saying that neworleans.txt is not in hdfs under a certain directory,
 
 create that directory in hadoop using this command: $HADOOP_HOME/bin/hadoop fs -mkdir /path/to/your/directory
 
