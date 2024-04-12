@@ -16,7 +16,7 @@
 
     5c. command to start spark workers $SPARK_HOME/sbin/start-workers.sh
 
-6. now try to run the sample .py, you should get an error saying that neworleans.txt is not in hdfs under a certain directory,
+6. now try to run the model .py, you should get an error saying that neworleans.txt is not in hdfs under a certain directory,
 
 create that directory in hadoop using this command: $HADOOP_HOME/bin/hadoop fs -mkdir /path/to/your/directory
 
@@ -27,3 +27,15 @@ create that directory in hadoop using this command: $HADOOP_HOME/bin/hadoop fs -
 
 
 now you can experiment with spark
+
+
+
+## Helpful things:
+- *param info maybe*
+- New York City bounds:
+  - Furthest North: 40.9058° N.
+  - Furthest South: 40.5008° N.
+  - Furthest East: 71.8627° W.
+  - Furthest West: 74.2540° W.
+  - Center: roughly 40.7580° N, 73.9855° W
+  - For the East/West ones remember to put a '-' before the longitude because it's West of the prime meridian
