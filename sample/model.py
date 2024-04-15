@@ -94,11 +94,11 @@ weather_df = weather_df.select("DATE", "PRCP", "TMIN", "TMAX")
 weather_df = weather_df.withColumn("TAVG", (col("TMIN") + col("TMAX")) / 2)
 
 # Join DataFrames on DATE column
-joined_df = filtered_frame.join(weather_df, on="DATE", how="inner")
+final_df = weather_df.select("DATE", "PRCP", "TAVG")
 
 # Write joined DataFrame to CSV
-joined_df.write.csv("joined_data.csv", header=True)
-joined_df.show(5)
+final_df.write.csv("NY_weather_processed.csv", header=True)
+final_df.show(5)
 
 spark.stop()
 
