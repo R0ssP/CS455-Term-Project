@@ -45,17 +45,17 @@ print(list(column_list))
 
 conditions = [col(column).isNotNull() for column in crime_df.columns]
 
-filtered_frame = crime_df.filter(reduce(lambda a, b: a & b, conditions))
+filtered_crime_df = crime_df.filter(reduce(lambda a, b: a & b, conditions))
 
-#filtered_frame.show(10)
-#print(filtered_frame.count())
+#filtered_crime_df.show(10)
+#print(filtered_crime_df.count())
 
 
 
 # create the response time column
 
-filtered_columns = list(filtered_frame.columns)
-print(filtered_columns)
+filtered_crime_columns = list(filtered_crime_df.columns)
+print(filtered_crime_columns)
 
 
 def calculate_response_time(time_left, time_arrived):
@@ -72,17 +72,17 @@ def calculate_response_time(time_left, time_arrived):
 calculate_response_time_udf = udf(calculate_response_time, IntegerType())
 
 # Apply UDF to each row
-filtered_frame = filtered_frame.withColumn(
+filtered_crime_df = filtered_crime_df.withColumn(
     "response_time_in_minutes",
-    calculate_response_time_udf(col(filtered_columns[1]), col(filtered_columns[2]))  # Pass entire row to UDF
+    calculate_response_time_udf(col(filtered_crime_columns[1]), col(filtered_crime_columns[2]))  # Pass entire row to UDF
 )
 
 # Show DataFrame with response_time column
-filtered_frame.show(5)
+filtered_crime_df.show(5)
 
-filtered_frame = filtered_frame.drop(filtered_columns[1])
-filtered_frame = filtered_frame.drop(filtered_columns[2])
-filtered_frame.show(5)
+filtered_crime_df = filtered_crime_df.drop(filtered_crime_columns[1])
+filtered_crime_df = filtered_crime_df.drop(filtered_crime_columns[2])
+filtered_crime_df.show(5)
 
 # Read weather data CSV into a DataFrame
 weather_df = spark.read.csv("NY_weather.csv", header=True)
@@ -94,11 +94,12 @@ weather_df = weather_df.select("DATE", "PRCP", "TMIN", "TMAX")
 weather_df = weather_df.withColumn("TAVG", (col("TMIN") + col("TMAX")) / 2)
 
 # Join DataFrames on DATE column
-final_df = weather_df.select("DATE", "PRCP", "TAVG")
+final_weather_df = weather_df.select("DATE", "PRCP", "TAVG")
 
 # Write joined DataFrame to CSV
-final_df.write.csv("NY_weather_processed.csv", header=True)
-final_df.show(5)
+
+final_weather_df.write.csv("NY_weather_processed.csv", header=True)
+final_weather_df.show(5)
 
 spark.stop()
 
