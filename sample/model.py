@@ -18,7 +18,7 @@ spark = SparkSession.builder \
 .appName('crime_solver')\
 .getOrCreate()
 
-named_frame = spark.read.csv(get_file(), header=True) 
+crime_df = spark.read.csv(get_file(), header=True) 
 
 
 
@@ -31,21 +31,21 @@ named_frame = spark.read.csv(get_file(), header=True)
 
 paramIndexArray = get_params()
 
-column_list = named_frame.columns
+column_list = crime_df.columns
 column_list = scrub_colum_array(column_list, paramIndexArray)
 
 for item in column_list:
-    named_frame = named_frame.drop(item)
+    crime_df = crime_df.drop(item)
 
 #named_frame.show(10)
 #print(named_frame.count())
 
-column_list = named_frame.columns
+column_list = crime_df.columns
 print(list(column_list))
 
-conditions = [col(column).isNotNull() for column in named_frame.columns]
+conditions = [col(column).isNotNull() for column in crime_df.columns]
 
-filtered_frame = named_frame.filter(reduce(lambda a, b: a & b, conditions))
+filtered_frame = crime_df.filter(reduce(lambda a, b: a & b, conditions))
 
 #filtered_frame.show(10)
 #print(filtered_frame.count())
@@ -83,6 +83,24 @@ filtered_frame.show(5)
 filtered_frame = filtered_frame.drop(filtered_columns[1])
 filtered_frame = filtered_frame.drop(filtered_columns[2])
 filtered_frame.show(5)
+
+# Read weather data CSV into a DataFrame
+weather_df = spark.read.csv("cities_weather.csv", header=True)
+
+# Select DATE, PRCP, TMIN, and TMAX columns from weather DataFrame
+weather_df = weather_df.select("DATE", "PRCP", "TMIN", "TMAX")
+
+# Calculate the average of TMIN and TMAX and add as a new column 'TAVG'
+weather_df = weather_df.withColumn("TAVG", (col("TMIN") + col("TMAX")) / 2)
+
+# Join DataFrames on DATE column
+joined_df = filtered_frame.join(weather_df, on="DATE", how="inner")
+
+# Write joined DataFrame to CSV
+joined_df.write.csv("joined_data.csv", header=True)
+joined_df.show(5)
+
+spark.stop()
 
 
 # function(s) for creating logical grid
