@@ -85,7 +85,7 @@ filtered_frame = filtered_frame.drop(filtered_columns[2])
 filtered_frame.show(5)
 
 # Read weather data CSV into a DataFrame
-weather_df = spark.read.csv("cities_weather.csv", header=True)
+weather_df = spark.read.csv("NY_weather.csv", header=True)
 
 # Select DATE, PRCP, TMIN, and TMAX columns from weather DataFrame
 weather_df = weather_df.select("DATE", "PRCP", "TMIN", "TMAX")
