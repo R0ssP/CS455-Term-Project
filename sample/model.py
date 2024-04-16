@@ -86,7 +86,7 @@ filtered_crime_df = filtered_crime_df.drop(filtered_crime_columns[2])
 filtered_crime_df.show(5)
 
 # get the uniwue column first column values, write a udf to map the values to index for new column
-unique_events = filtered_frame.select(filtered_columns[0]).distinct().rdd.map(lambda row: row[0]).collect()
+unique_events = filtered_crime_df.select(filtered_crime_columns[0]).distinct().rdd.map(lambda row: row[0]).collect()
 
 def map_event_type(eventTypes):
     def map_event_type_udf(event_value):
@@ -97,12 +97,12 @@ def map_event_type(eventTypes):
 
     return udf(map_event_type_udf, IntegerType())
 
-filtered_frame = filtered_frame.withColumn(
+filtered_crime_df = filtered_crime_df.withColumn(
     "event_type_value",
-    map_event_type(unique_events)(col(filtered_columns[0]))
+    map_event_type(unique_events)(col(filtered_crime_columns[0]))
 )
 
-filtered_frame.show(5)
+filtered_crime_df.show(5)
 
 # Read weather data CSV into a DataFrame
 weather_df = spark.read.csv("NY_weather.csv", header=True)
@@ -159,11 +159,11 @@ def map_to_zone(lat, long, lat_upper_bound, long_upper_bound, lat_lower_bound, l
     return 0
 
 # Apply the UDF to the DataFrame
-filtered_frame = filtered_frame.withColumn(
+filtered_crime_df = filtered_crime_df.withColumn(
     "zone",
-    map_to_zone(col(filtered_columns[3]), col(filtered_columns[4]), 
+    map_to_zone(col(filtered_crime_columns[3]), col(filtered_crime_columns[4]), 
         lit(lat_upper_bound_list), lit(long_upper_bound_list), 
         lit(lat_lower_bound_list), lit(long_lower_bound_list))
 )
 
-filtered_frame.show(5)
+filtered_crime_df.show(5)
