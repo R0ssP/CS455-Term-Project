@@ -60,8 +60,8 @@ def generate_grid():
 
     number_of_cells = side_length * side_length
 
-    lat_offset_km = 1 / 111 
-    lon_offset_km = 1 / (111 * math.cos(math.radians(center_lat)))  #  Adjusted for latitude
+    lat_offset_km = (-1 / 111)
+    lon_offset_km = (1 / (111 * math.cos(math.radians(center_lat))))   # negative value to move DOWN
 
     grid = []
 
@@ -72,6 +72,7 @@ def generate_grid():
             new_center_lon = center_long
         else:
             new_center_lon = center_long + (i % side_length) * lon_offset_km
+
         new_center_point = [new_center_lat, new_center_lon]
         for bearing in [45, 135, 225, 315]:
             result = geod.Direct(new_center_point[0], new_center_point[1], bearing, distance_to_center)
