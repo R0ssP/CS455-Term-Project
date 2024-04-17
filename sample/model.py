@@ -29,6 +29,10 @@ crime_df = spark.read.csv(get_file(), header=True)
 # for NYPD the input is:
 # 10 longitude / latitude 16 17 13 14
 
+#ny dataset:
+# type of crime is 10, lat is 16, long is 17, dispatch is 13, arrival is 14, center latitude is 40.958, long is -73.9588
+
+
 paramIndexArray = get_params()
 
 column_list = crime_df.columns
@@ -118,7 +122,7 @@ final_weather_df = weather_df.select("DATE", "PRCP", "TAVG")
 
 # Write joined DataFrame to CSV
 
-final_weather_df.write.csv("NY_weather_processed.csv", header=True)
+final_weather_df.write.csv("NY_weather_processed.csv", header=True, mode="overwrite")
 final_weather_df.show(5)
 
 spark.stop()
