@@ -135,6 +135,7 @@ spark.stop()
 grid = generate_grid()
 print(grid[0])
 
+<<<<<<< Updated upstream
 from pyspark.sql.functions import udf
 from pyspark.sql.types import IntegerType
 
@@ -142,21 +143,61 @@ def map_to_zone(lat, lon, grid):
     for i, row in enumerate(grid):
         if (row[1][0] <= lat <= row[0][0]) and (row[1][1] <= lon <= row[0][1]):
             return i
+=======
+# def map_to_zone(lat, lon, grid):
+#     for i, row in enumerate(grid):
+#         if (row[1][0] <= lat <= row[0][0]) and (row[1][1] <= lon <= row[0][1]):
+#             return i
+>>>>>>> Stashed changes
     
-    return -1
+#     return -1
 
+<<<<<<< Updated upstream
 map_to_zone_udf = udf(map_to_zone, IntegerType())
 # map_to_zone_udf = udf(lambda lat, lon, grid: map_to_zone(lat, lon, grid), IntegerType())
 filtered_crime_columns = list(filtered_crime_df.columns)
+=======
+# lat = 40.2430
+# lon = -73.0059008
+# zone = map_to_zone(lat, lon, grid)
+# print("Zone:", zone)
+
+# map_to_zone_udf = udf(lambda lat, lon, grid: map_to_zone(lat, lon, grid), IntegerType())
+# filtered_crime_columns = list(filtered_crime_df.columns)
 
 
-# Apply the UDF to the DataFrame to create a new column
+# # Apply the UDF to the DataFrame to create a new column
+# filtered_crime_df = filtered_crime_df.withColumn(
+#     "zone",
+#     map_to_zone_udf(col(filtered_crime_columns[3]), col(filtered_crime_columns[4]), lit(grid))
+# )
+
+# filtered_crime_df.show(5)
+
+
+def map_me(grid):
+    def map_me_udf(lat, lon):
+        for i, row in enumerate(grid):
+            if (row[1][0] <= lat <= row[0][0]) and (row[1][1] <= lon <= row[0][1]):
+                return i
+    
+        return -1
+    return udf(map_me_udf, IntegerType())
+
+>>>>>>> Stashed changes
+
+
 filtered_crime_df = filtered_crime_df.withColumn(
     "zone",
+<<<<<<< Updated upstream
     map_to_zone_udf(col("Latitude"), col("Longitude"), lit(grid))
+=======
+    map_me(grid)(col(filtered_crime_columns[3]), col(filtered_crime_columns[4]))
+>>>>>>> Stashed changes
 )
 
 filtered_crime_df.show(5)
+
 
 
 
