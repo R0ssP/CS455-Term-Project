@@ -23,7 +23,6 @@ crime_df = spark.read.csv(get_file(), header=True)
 
 
 
-
 # for new orleans the input is:
 # 1 zipcode 18 10 11
 # for NYPD the input is:
@@ -136,6 +135,9 @@ spark.stop()
 grid = generate_grid()
 print(grid[0])
 
+from pyspark.sql.functions import udf
+from pyspark.sql.types import IntegerType
+
 def map_to_zone(lat, lon, grid):
     for i, row in enumerate(grid):
         if (row[1][0] <= lat <= row[0][0]) and (row[1][1] <= lon <= row[0][1]):
@@ -143,19 +145,15 @@ def map_to_zone(lat, lon, grid):
     
     return -1
 
-# lat = 40.2430
-# lon = -73.0059008
-# zone = map_to_zone(lat, lon, grid)
-# print("Zone:", zone)
-
-map_to_zone_udf = udf(lambda lat, lon, grid: map_to_zone(lat, lon, grid), IntegerType())
+map_to_zone_udf = udf(map_to_zone, IntegerType())
+# map_to_zone_udf = udf(lambda lat, lon, grid: map_to_zone(lat, lon, grid), IntegerType())
 filtered_crime_columns = list(filtered_crime_df.columns)
 
 
 # Apply the UDF to the DataFrame to create a new column
 filtered_crime_df = filtered_crime_df.withColumn(
     "zone",
-    map_to_zone_udf(col(filtered_crime_columns[3]), col(filtered_crime_columns[4]), lit(grid))
+    map_to_zone_udf(col("Latitude"), col("Longitude"), lit(grid))
 )
 
 filtered_crime_df.show(5)
