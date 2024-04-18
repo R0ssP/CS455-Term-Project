@@ -185,7 +185,7 @@ filtered_crime_rdd = temp_rdd.map(lambda row: map_to_zone(row["Latitude"], row["
 # ])
 
 # Create DataFrame from RDD with the specified schema
-filtered_crime_df = spark.createDataFrame(filtered_crime_rdd)
+filtered_crime_df = spark.createDataFrame(filtered_crime_rdd, schema)
 
 
 filtered_crime_df.show(5)
