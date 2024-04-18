@@ -6,7 +6,8 @@ import pyspark
 from pyspark.sql import Row
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, lit, when, udf, broadcast, monotonically_increasing_id
-from pyspark.sql.types import IntegerType
+from pyspark.sql.types import StructType, StructField, StringType, IntegerType, FloatType
+
 
 from functools import reduce
 from Util import get_params, scrub_colum_array, get_file, calculate_response_time
@@ -124,7 +125,6 @@ final_weather_df = weather_df.select("DATE", "PRCP", "TAVG")
 final_weather_df.write.csv("NY_weather_processed.csv", header=True, mode="overwrite")
 final_weather_df.show(5)
 
-spark.stop()
 
 
 # function(s) for creating logical grid
@@ -135,66 +135,58 @@ spark.stop()
 grid = generate_grid()
 print(grid[0])
 
-<<<<<<< Updated upstream
-from pyspark.sql.functions import udf
-from pyspark.sql.types import IntegerType
+# grid_broadcast = spark.sparkContext.broadcast(grid)
 
-def map_to_zone(lat, lon, grid):
-    for i, row in enumerate(grid):
-        if (row[1][0] <= lat <= row[0][0]) and (row[1][1] <= lon <= row[0][1]):
-            return i
-=======
-# def map_to_zone(lat, lon, grid):
+
+# def map_to_zone(lat, lon):
+#     grid = grid_broadcast.value
+
 #     for i, row in enumerate(grid):
 #         if (row[1][0] <= lat <= row[0][0]) and (row[1][1] <= lon <= row[0][1]):
 #             return i
->>>>>>> Stashed changes
     
 #     return -1
 
-<<<<<<< Updated upstream
-map_to_zone_udf = udf(map_to_zone, IntegerType())
-# map_to_zone_udf = udf(lambda lat, lon, grid: map_to_zone(lat, lon, grid), IntegerType())
-filtered_crime_columns = list(filtered_crime_df.columns)
-=======
-# lat = 40.2430
-# lon = -73.0059008
-# zone = map_to_zone(lat, lon, grid)
-# print("Zone:", zone)
+def map_to_zone(lat, lon, grid):
+    for i, row in enumerate(grid):
+        
+        # print(type(lat))
+        # print(type(row[1][0]))
+        if (row[1][0] <= float(lat) <= row[0][0]) and (row[1][1] <= float(lon) <= row[0][1]):
+            return i
+    
+    return -1
 
-# map_to_zone_udf = udf(lambda lat, lon, grid: map_to_zone(lat, lon, grid), IntegerType())
+# map_to_zone_udf = udf(map_to_zone, IntegerType())
+# map_to_zone_udf = udf(lambda lat, lon: map_to_zone(lat, lon), IntegerType())
 # filtered_crime_columns = list(filtered_crime_df.columns)
-
-
-# # Apply the UDF to the DataFrame to create a new column
 # filtered_crime_df = filtered_crime_df.withColumn(
 #     "zone",
-#     map_to_zone_udf(col(filtered_crime_columns[3]), col(filtered_crime_columns[4]), lit(grid))
+#     map_to_zone_udf(col(filtered_crime_columns[3]), col(filtered_crime_columns[4]))
 # )
-
 # filtered_crime_df.show(5)
 
 
-def map_me(grid):
-    def map_me_udf(lat, lon):
-        for i, row in enumerate(grid):
-            if (row[1][0] <= lat <= row[0][0]) and (row[1][1] <= lon <= row[0][1]):
-                return i
-    
-        return -1
-    return udf(map_me_udf, IntegerType())
+temp_rdd = filtered_crime_df.rdd
 
->>>>>>> Stashed changes
+filtered_crime_df.schema
 
+filtered_crime_rdd = temp_rdd.map(lambda row: map_to_zone(row["Latitude"], row["Longitude"], grid))
 
-filtered_crime_df = filtered_crime_df.withColumn(
-    "zone",
-<<<<<<< Updated upstream
-    map_to_zone_udf(col("Latitude"), col("Longitude"), lit(grid))
-=======
-    map_me(grid)(col(filtered_crime_columns[3]), col(filtered_crime_columns[4]))
->>>>>>> Stashed changes
-)
+# filtered_crime_df = filtered_crime_rdd.toDF(["TYP_DESC", "Latitude", "Longitude", "response_time_in_minutes", "event_type_value", "zone"])
+
+# schema = StructType([
+#     StructField("TYP_DESC", StringType(), True),
+#     StructField("Latitude", FloatType(), True),
+#     StructField("Longitude", FloatType(), True),
+#     StructField("response_time_in_minutes", IntegerType(), True),
+#     StructField("event_type_value", IntegerType(), True),
+#     StructField("zone", IntegerType(), True)
+# ])
+
+# Create DataFrame from RDD with the specified schema
+filtered_crime_df = spark.createDataFrame(filtered_crime_rdd)
+
 
 filtered_crime_df.show(5)
 
@@ -264,3 +256,7 @@ filtered_crime_df.show(5)
 # )
 
 # filtered_crime_df.show(5)
+
+
+
+spark.stop()
