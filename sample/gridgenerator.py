@@ -33,7 +33,7 @@ def get_side_length():
 
 
 
-def get_grid_edges():
+def get_grid_edges(side_length_in_km):
     center_point = get_center()
     side_length_in_meters = (side_length_in_km * 1000) / math.sqrt(2)
     geod = Geodesic.WGS84
@@ -51,6 +51,7 @@ def generate_grid():
     # top left corner is the second tuple
     side_length = get_side_length()
     corners = get_grid_edges(side_length)
+    # corners = get_grid_edges()
     geod = Geodesic.WGS84
     top_left_offset = corners[1]
     distance_to_center = 1000 / math.sqrt(2)
