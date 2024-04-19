@@ -16,7 +16,8 @@ def read_index(prompt):
 def get_params():
     params = []
 
-    print("For each of following values, please enter the index in which they appear in a row in your CSV file. \n *Note* the first position should map to index 0") #  edit that sentence
+    print("For each of following values, please enter the index in which they appear in a row in your CSV file. \n *Note* the first position should map to index 0") 
+    
     reported_as = read_index("Index of type of event / reported as ")
     params.append(reported_as)
     latitude = read_index("Index of latitude ")
@@ -28,12 +29,14 @@ def get_params():
     time_arrived = read_index("Index of arrival time ")
     params.append(time_dispatched)
     params.append(time_arrived)
+    
     return params;
 
 
 def scrub_colum_array(column_list, paramIndexArray):
     for i in sorted(paramIndexArray, reverse=True):
         del column_list[int(i)]
+    column_list.remove('INCIDENT_DATE')
     return column_list
 
 

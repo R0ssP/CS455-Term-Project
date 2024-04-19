@@ -1,23 +1,35 @@
 import sys
 from datetime import datetime
-spark_python_path = '/usr/local/spark/3.5.0-with-hadoop3.3/python'
-sys.path.append(spark_python_path)
-import pyspark
+# spark_python_path = '/usr/local/spark/3.5.0-with-hadoop3.3/python'
+# geopandas_path = './miniconda3/lib/python3.12/site-packages/'
+# sys.path.append(spark_python_path)
+# sys.path.append(geopandas_path)
+
+import pyspark # type: ignore
 from pyspark.sql import Row
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, lit, when, udf, broadcast, monotonically_increasing_id
+from pyspark.sql.functions import col, lit, when, udf, date_format
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, FloatType
 
 
 from functools import reduce
 from Util import get_params, scrub_colum_array, get_file, calculate_response_time
 from gridgenerator import generate_grid;
-
+import geopandas as gpd
+import pandas
+import numpy as np
+from shapely.geometry import Polygon, Point
 
 spark = SparkSession.builder \
 .master("local")\
 .appName('crime_solver')\
+.config("spark.executor.memory", "4g")\
 .getOrCreate()
+
+spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
+
+
+
 
 crime_df = spark.read.csv(get_file(), header=True)
 
@@ -79,14 +91,14 @@ calculate_response_time_udf = udf(calculate_response_time, IntegerType())
 # Apply UDF to each row
 filtered_crime_df = filtered_crime_df.withColumn(
     "response_time_in_minutes",
-    calculate_response_time_udf(col(filtered_crime_columns[1]), col(filtered_crime_columns[2]))  # Pass entire row to UDF
+    calculate_response_time_udf(col(filtered_crime_columns[2]), col(filtered_crime_columns[3]))  # Pass entire row to UDF
 )
 
 # Show DataFrame with response_time column
 filtered_crime_df.show(5)
 
-filtered_crime_df = filtered_crime_df.drop(filtered_crime_columns[1])
 filtered_crime_df = filtered_crime_df.drop(filtered_crime_columns[2])
+filtered_crime_df = filtered_crime_df.drop(filtered_crime_columns[3])
 filtered_crime_df.show(5)
 
 # get the uniwue column first column values, write a udf to map the values to index for new column
@@ -123,140 +135,82 @@ final_weather_df = weather_df.select("DATE", "PRCP", "TAVG")
 # Write joined DataFrame to CSV
 
 final_weather_df.write.csv("NY_weather_processed.csv", header=True, mode="overwrite")
-final_weather_df.show(5)
-
-
+final_weather_df = final_weather_df.withColumn("DATE", col("DATE").cast("date"))
+final_weather_df = final_weather_df.withColumn("DATE", date_format(col("DATE"), "MM/dd/yyyy"))
+final_weather_df = final_weather_df.filter(col("DATE").substr(7,3) == "202")
+final_weather_df.show(10)
 
 # function(s) for creating logical grid
 # side length for nyc is 48km16
 # side length for NO is 22km
 #corners = get_grid_edges()
 
-grid = generate_grid()
-print(grid[0])
-
-# grid_broadcast = spark.sparkContext.broadcast(grid)
-
-
-# def map_to_zone(lat, lon):
-#     grid = grid_broadcast.value
-
-#     for i, row in enumerate(grid):
-#         if (row[1][0] <= lat <= row[0][0]) and (row[1][1] <= lon <= row[0][1]):
-#             return i
-    
-#     return -1
-
-def map_to_zone(lat, lon, grid):
-    for i, row in enumerate(grid):
-        
-        # print(type(lat))
-        # print(type(row[1][0]))
-        if (row[1][0] <= float(lat) <= row[0][0]) and (row[1][1] <= float(lon) <= row[0][1]):
-            return i
-    
-    return -1
-
-# map_to_zone_udf = udf(map_to_zone, IntegerType())
-# map_to_zone_udf = udf(lambda lat, lon: map_to_zone(lat, lon), IntegerType())
-# filtered_crime_columns = list(filtered_crime_df.columns)
-# filtered_crime_df = filtered_crime_df.withColumn(
-#     "zone",
-#     map_to_zone_udf(col(filtered_crime_columns[3]), col(filtered_crime_columns[4]))
-# )
-# filtered_crime_df.show(5)
+def create_grid(xmin, xmax, ymin, ymax, width, height):
+    rows = int(np.ceil((ymax-ymin) / height))
+    cols = int(np.ceil((xmax-xmin) / width))
+    x_left = xmin
+    x_right = xmin + width
+    grid_cells = []
+    for i in range(cols):
+        y_top = ymax
+        y_bottom = ymax - height
+        for j in range(rows):
+            grid_cells.append(Polygon([(x_left, y_top), (x_right, y_top), (x_right, y_bottom), (x_left, y_bottom)]))
+            y_top = y_bottom
+            y_bottom = y_bottom - height
+        x_left = x_right
+        x_right = x_right + width
+    grid = gpd.GeoDataFrame(grid_cells, columns=['geometry'])
+    grid.crs = {'init': 'epsg:4326'}
+    return grid
 
 
-temp_rdd = filtered_crime_df.rdd
+crime_df = filtered_crime_df.toPandas()
+crime_df['geometry'] = crime_df.apply(lambda row: Point(row['Longitude'], row['Latitude']), axis=1)
+crime_gdf = gpd.GeoDataFrame(crime_df, geometry='geometry', crs={'init': 'epsg:4326'})
 
-filtered_crime_df.schema
+# def read_float(prompt):
+#     while True:
+#         user_input = input(prompt)
+#         try:
+#             float(user_input)
+#             return user_input
+#         except ValueError:
+#             print("ERROR: Please enter a decimal point")
 
-filtered_crime_rdd = temp_rdd.map(lambda row: map_to_zone(row["Latitude"], row["Longitude"], grid))
+# xmin = read_float("Enter the minimum longitude for the bounding box")
+# xmax = read_float("Enter the maximum longitude for the bounding box")
+# ymin = read_float("Enter the minimum latitude for the bounding box")
+# ymax = read_float("Enter the minimum latitude for the bounding box")
 
-# filtered_crime_df = filtered_crime_rdd.toDF(["TYP_DESC", "Latitude", "Longitude", "response_time_in_minutes", "event_type_value", "zone"])
+xmin, xmax, ymin, ymax = -74.25559, -73.70001, 40.49612, 40.91553
+width = 0.01  # width of a grid cell in longitude degrees, adjust as necessary
+height = 0.01  # height of a grid cell in latitude degrees, adjust as necessary
+grid = create_grid(xmin, xmax, ymin, ymax, width, height)
+crime_with_grid = gpd.sjoin(crime_gdf, grid, how="inner", op='within')
+crime_with_grid = crime_with_grid.drop("geometry", axis=1)
 
-# schema = StructType([
-#     StructField("TYP_DESC", StringType(), True),
-#     StructField("Latitude", FloatType(), True),
-#     StructField("Longitude", FloatType(), True),
-#     StructField("response_time_in_minutes", IntegerType(), True),
-#     StructField("event_type_value", IntegerType(), True),
-#     StructField("zone", IntegerType(), True)
-# ])
+print(crime_with_grid.head(10))
+filtered_crime_df = spark.createDataFrame(crime_with_grid)
+filtered_crime_df.show(10)
 
-# Create DataFrame from RDD with the specified schema
-filtered_crime_df = spark.createDataFrame(filtered_crime_rdd, schema)
+filtered_crime_df = filtered_crime_df.withColumnRenamed('index_right', 'zone')
+filtered_crime_df = filtered_crime_df.withColumnRenamed('INCIDENT_DATE', 'DATE')
+filtered_crime_df.show(10)
+final_weather_df.show(10)
 
+filtered_crime_df = filtered_crime_df.join(final_weather_df, on='DATE', how='left')
 
-filtered_crime_df.show(5)
+filtered_crime_df.show(10)
 
-
-
-
-
-# # Define a function to map latitude and longitude to a zone
-# def map_to_zone(lat, lon):
-#     for i, row in enumerate(grid):
-#         for j, points in enumerate(row):
-#             # Check if the latitude and longitude fall within the current grid cell
-#             if (points[2][0] <= lat <= points[0][0]) and (points[0][1] <= lon <= points[2][1]):
-#                 return i * len(grid) + j  # Assuming a unique integer value for each zone
-#     return -1  # Return -1 if the point does not fall within any grid cell
-
-# # Register the UDF (User Defined Function)
-# from pyspark.sql.functions import udf
-# from pyspark.sql.types import IntegerType
-
-# map_to_zone_udf = udf(map_to_zone, IntegerType())
-
-# # Apply the UDF to each row of the DataFrame to create the "zone" column
-# df = df.withColumn("zone", map_to_zone_udf("latitude_column", "longitude_column"))
-
-# # Show the DataFrame with the new "zone" column
-# df.show()
-
-
-
-# grid_rows = [Row(lat_upper_bound=grid[i][0][0], long_upper_bound=grid[i][0][1], 
-#                   lat_lower_bound=grid[i][2][0], long_lower_bound=grid[i][2][1]) for i in range(len(grid))]
-
-# grid_df = spark.createDataFrame(grid_rows)
-
-# grid_df = grid_df.withColumn("index", monotonically_increasing_id())
-# grid_df.printSchema()
-# grid_df.show(1)
-
-
-# grid_df.printSchema()
-# grid_df.show(1)
-
-
-# lat_upper_bound_list = [float(row.lat_upper_bound) for row in grid_df.collect()]
-# long_upper_bound_list = [float(row.long_upper_bound) for row in grid_df.collect()]
-# lat_lower_bound_list = [float(row.lat_lower_bound) for row in grid_df.collect()]
-# long_lower_bound_list = [float(row.long_lower_bound) for row in grid_df.collect()]
-
-# @udf(IntegerType())
-# def map_to_zone(lat, long, lat_upper_bound, long_upper_bound, lat_lower_bound, long_lower_bound):
-#     # for i in range(len(lat_upper_bound)):
-#     #     #print(float(long) - float(lat)) # sanity check, it failed, always the same values
-#     #     print(lat_lower_bound[0])
-#     #     print(lat_lower_bound[10])
-#     #     if (long_lower_bound[i] <= float(long) <= long_upper_bound[i]) and (lat_lower_bound[i] <= float(lat) <= lat_upper_bound[i]):
-#     #         return i
-#     # return 0
-
-
-# # Apply the UDF to the DataFrame
-# filtered_crime_df = filtered_crime_df.withColumn(
-#     "zone",
-#     map_to_zone(col(filtered_crime_columns[3]), col(filtered_crime_columns[4]), 
-#         lit(lat_upper_bound_list), lit(long_upper_bound_list), 
-#         lit(lat_lower_bound_list), lit(long_lower_bound_list))
-# )
-
-# filtered_crime_df.show(5)
-
+#iltered_crime_df = filtered_crime_df.filter(col("DATE").substr(7,4) != "2023")
+filtered_crime_df.show(10)
+print(filtered_crime_df.count())
 
 
 spark.stop()
+
+#  create the vectored columns for training
+# get the subset
+# train that shit
+# write the analysis files
