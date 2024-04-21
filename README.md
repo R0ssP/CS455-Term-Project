@@ -48,3 +48,13 @@ now you can experiment with spark
   - Whenever it yells at you just run ‘pip3 install name_of_dependency’
   - Make sure to use command line to run it, pressing run button will not work
 
+ ## How to run on the cluster correctly
+ - make sure you are on your master node
+ - go to sparkConf dir
+ - open the spark-defaults.conf, at the bottom of the file will be the spark URL for your master node
+    it should look something like htis "spark://albany.cs.colostate.edu:31580"
+ - check the cluster health by running ./monitor.sh found in the hadoopConf dir
+ - if everything is good, navigate to the directory that holds your script
+ - run this command: spark-submit --master YOUR-MASTER-URL model.py
+ - get a beer cause it takes a minute
+

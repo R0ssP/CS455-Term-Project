@@ -9,7 +9,12 @@ import pyspark # type: ignore
 from pyspark.sql import Row
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, lit, when, udf, date_format
-from pyspark.sql.types import StructType, StructField, StringType, IntegerType, FloatType
+from pyspark.sql.types import IntegerType
+
+from pyspark.ml.feature import VectorAssembler
+from pyspark.ml.regression import LinearRegression
+from pyspark.ml import Pipeline
+from pyspark.ml.evaluation import RegressionEvaluator
 
 
 from functools import reduce
@@ -32,6 +37,10 @@ spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
 
 
 crime_df = spark.read.csv("NYPD.csv", header=True)
+
+weather_df = spark.read.csv("NYCW.csv", header=True)
+weather_df = weather_df.withColumnRenamed("Day", "DATE")
+weather_df.show(5)
 
 
 
@@ -99,8 +108,9 @@ filtered_crime_df = filtered_crime_df.drop(filtered_crime_columns[2])
 filtered_crime_df = filtered_crime_df.drop(filtered_crime_columns[3])
 filtered_crime_df.show(5)
 
+
 # get the uniwue column first column values, write a udf to map the values to index for new column
-unique_events = filtered_crime_df.select(filtered_crime_columns[0]).distinct().rdd.map(lambda row: row[0]).collect()
+unique_events = filtered_crime_df.select(filtered_crime_columns[1]).distinct().rdd.map(lambda row: row[0]).collect()
 
 def map_event_type(eventTypes):
     def map_event_type_udf(event_value):
@@ -113,30 +123,29 @@ def map_event_type(eventTypes):
 
 filtered_crime_df = filtered_crime_df.withColumn(
     "event_type_value",
-    map_event_type(unique_events)(col(filtered_crime_columns[0]))
+    map_event_type(unique_events)(col(filtered_crime_columns[1]))
 )
 
 filtered_crime_df.show(5)
 
-# Read weather data CSV into a DataFrame
-weather_df = spark.read.csv("NY_weather.csv", header=True)
 
-# Select DATE, PRCP, TMIN, and TMAX columns from weather DataFrame
-weather_df = weather_df.select("DATE", "PRCP", "TMIN", "TMAX")
 
-# Calculate the average of TMIN and TMAX and add as a new column 'TAVG'
-weather_df = weather_df.withColumn("TAVG", (col("TMIN") + col("TMAX")) / 2)
+# # Select DATE, PRCP, TMIN, and TMAX columns from weather DataFrame
+# weather_df = weather_df.select("DATE", "PRCP", "TMIN", "TMAX")
 
-# Join DataFrames on DATE column
-final_weather_df = weather_df.select("DATE", "PRCP", "TAVG")
+# # Calculate the average of TMIN and TMAX and add as a new column 'TAVG'
+# weather_df = weather_df.withColumn("TAVG", (col("TMIN") + col("TMAX")) / 2)
 
-# Write joined DataFrame to CSV
+# # Join DataFrames on DATE column
+# final_weather_df = weather_df.select("DATE", "PRCP", "TAVG")
 
-final_weather_df.write.csv("NY_weather_processed.csv", header=True, mode="overwrite")
-final_weather_df = final_weather_df.withColumn("DATE", col("DATE").cast("date"))
-final_weather_df = final_weather_df.withColumn("DATE", date_format(col("DATE"), "MM/dd/yyyy"))
-final_weather_df = final_weather_df.filter(col("DATE").substr(7,3) == "202")
-final_weather_df.show(10)
+# # Write joined DataFrame to CSV
+
+# final_weather_df.write.csv("NY_weather_processed.csv", header=True, mode="overwrite")
+# final_weather_df = final_weather_df.withColumn("DATE", col("DATE").cast("date"))
+# final_weather_df = final_weather_df.withColumn("DATE", date_format(col("DATE"), "MM/dd/yyyy"))
+# final_weather_df = final_weather_df.filter(col("DATE").substr(7,3) == "202")
+# final_weather_df.show(10)
 
 # function(s) for creating logical grid
 # side length for nyc is 48km16
@@ -167,19 +176,6 @@ crime_df = filtered_crime_df.toPandas()
 crime_df['geometry'] = crime_df.apply(lambda row: Point(row['Longitude'], row['Latitude']), axis=1)
 crime_gdf = gpd.GeoDataFrame(crime_df, geometry='geometry', crs={'init': 'epsg:4326'})
 
-# def read_float(prompt):
-#     while True:
-#         user_input = input(prompt)
-#         try:
-#             float(user_input)
-#             return user_input
-#         except ValueError:
-#             print("ERROR: Please enter a decimal point")
-
-# xmin = read_float("Enter the minimum longitude for the bounding box")
-# xmax = read_float("Enter the maximum longitude for the bounding box")
-# ymin = read_float("Enter the minimum latitude for the bounding box")
-# ymax = read_float("Enter the minimum latitude for the bounding box")
 
 xmin, xmax, ymin, ymax = -74.25559, -73.70001, 40.49612, 40.91553
 width = 0.01  # width of a grid cell in longitude degrees, adjust as necessary
@@ -195,15 +191,37 @@ filtered_crime_df.show(10)
 filtered_crime_df = filtered_crime_df.withColumnRenamed('index_right', 'zone')
 filtered_crime_df = filtered_crime_df.withColumnRenamed('INCIDENT_DATE', 'DATE')
 filtered_crime_df.show(10)
-final_weather_df.show(10)
+weather_df.show(10)
 
-filtered_crime_df = filtered_crime_df.join(final_weather_df, on='DATE', how='left')
 
-filtered_crime_df.show(10)
+filtered_crime_df = filtered_crime_df.join(weather_df, on='DATE', how='left')
 
-#iltered_crime_df = filtered_crime_df.filter(col("DATE").substr(7,4) != "2023")
-filtered_crime_df.show(10)
 
+
+filtered_crime_df = filtered_crime_df.filter(col("DATE").substr(7,4) != "2022")
+filtered_crime_df = filtered_crime_df.withColumn("High (°F)", col("High (°F)").cast("float"))
+filtered_crime_df = filtered_crime_df.withColumn("Low (°F)", col("Low (°F)").cast("float"))
+filtered_crime_df = filtered_crime_df.withColumn("`Precip. (inches)`", col("`Precip. (inches)`").cast("float"))
+filtered_crime_df = filtered_crime_df.withColumn("Snow (inches)", col("Snow (inches)").cast("float"))
+
+# Check the schema to confirm the data type changes
+filtered_crime_df.printSchema()
+filtered_crime_df.show(500)
+print("about to train")
+
+# below is basically what should happen, I think it will run but don't have time to chcek rn
+
+# feature_cols = ['event_type_value', 'zone', 'High (°F)', 'Low (°F)', 'Precip. (inches)', 'Snow (inches)']
+# assembler = VectorAssembler(inputCols=feature_cols, outputCol="features")
+# lr = LinearRegression(featuresCol="features", labelCol="response_time_in_minutes")
+# pipeline = Pipeline(stages=[assembler, lr])
+
+# train_data, test_data = filtered_crime_df.randomSplit([0.8,0.2], seed=45)
+# model = pipeline.fit(train_data)
+# predictions = model.transform(test_data)
+# evaluator = RegressionEvaluator(labelCol="response_time_in_minutes", predictionCol="prediction", metricName="rmse")
+# rmse = evaluator.evaluate(predictions)
+# print("Root Mean Squared Error (RMSE):", rmse)
 
 
 spark.stop()
