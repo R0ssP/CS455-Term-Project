@@ -31,7 +31,7 @@ spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
 
 
 
-crime_df = spark.read.csv(get_file(), header=True)
+crime_df = spark.read.csv("NYPD.csv", header=True)
 
 
 
@@ -45,7 +45,7 @@ crime_df = spark.read.csv(get_file(), header=True)
 # type of crime is 10, lat is 16, long is 17, dispatch is 13, arrival is 14, center latitude is 40.958, long is -73.9588
 
 
-paramIndexArray = get_params()
+paramIndexArray = [10,16,17,13,14]
 
 column_list = crime_df.columns
 print(column_list)
@@ -66,8 +66,6 @@ filtered_crime_df = crime_df.filter(reduce(lambda a, b: a & b, conditions))
 
 #filtered_crime_df.show(10)
 #print(filtered_crime_df.count())
-
-
 
 # create the response time column
 
@@ -205,7 +203,7 @@ filtered_crime_df.show(10)
 
 #iltered_crime_df = filtered_crime_df.filter(col("DATE").substr(7,4) != "2023")
 filtered_crime_df.show(10)
-print(filtered_crime_df.count())
+
 
 
 spark.stop()
