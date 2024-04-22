@@ -1,14 +1,13 @@
 import sys
 from datetime import datetime
-# spark_python_path = '/usr/local/spark/3.5.0-with-hadoop3.3/python'
-# geopandas_path = './miniconda3/lib/python3.12/site-packages/'
-# sys.path.append(spark_python_path)
-# sys.path.append(geopandas_path)
 
 import pyspark # type: ignore
-from pyspark.sql import Row
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, lit, when, udf, date_format
+
+from pyspark.sql import SparkSession, Row
+
+from pyspark.sql.functions import col,udf
+
+
 from pyspark.sql.types import IntegerType
 
 from pyspark.ml.feature import VectorAssembler
@@ -16,11 +15,11 @@ from pyspark.ml.regression import LinearRegression
 from pyspark.ml import Pipeline
 from pyspark.ml.evaluation import RegressionEvaluator
 
-
 from functools import reduce
-from Util import get_params, scrub_colum_array, get_file, calculate_response_time
-from gridgenerator import generate_grid;
+from Util import scrub_colum_array, calculate_response_time
 import geopandas as gpd
+from Util import  scrub_colum_array,  calculate_response_time
+
 import pandas
 import numpy as np
 from shapely.geometry import Polygon, Point
@@ -172,6 +171,7 @@ def create_grid(xmin, xmax, ymin, ymax, width, height):
     return grid
 
 
+
 crime_df = filtered_crime_df.toPandas()
 crime_df['geometry'] = crime_df.apply(lambda row: Point(row['Longitude'], row['Latitude']), axis=1)
 crime_gdf = gpd.GeoDataFrame(crime_df, geometry='geometry', crs={'init': 'epsg:4326'})
@@ -205,9 +205,12 @@ filtered_crime_df = filtered_crime_df.withColumn("`Precip. (inches)`", col("`Pre
 filtered_crime_df = filtered_crime_df.withColumn("Snow (inches)", col("Snow (inches)").cast("float"))
 
 # Check the schema to confirm the data type changes
-filtered_crime_df.printSchema()
-filtered_crime_df.show(500)
-print("about to train")
+print("about to save frame")
+frame_path = "/user/jdy2003/nycFrame/"
+filtered_crime_df.write.format("csv").save(frame_path)
+print("write complete")
+
+
 
 # below is basically what should happen, I think it will run but don't have time to chcek rn
 
@@ -217,11 +220,20 @@ print("about to train")
 # pipeline = Pipeline(stages=[assembler, lr])
 
 # train_data, test_data = filtered_crime_df.randomSplit([0.8,0.2], seed=45)
+
+# nyc_crime_model = pipeline.fit(train_data)
+# predictions = nyc_crime_model.transform(test_data)
+
 # model = pipeline.fit(train_data)
 # predictions = model.transform(test_data)
+
 # evaluator = RegressionEvaluator(labelCol="response_time_in_minutes", predictionCol="prediction", metricName="rmse")
 # rmse = evaluator.evaluate(predictions)
 # print("Root Mean Squared Error (RMSE):", rmse)
+
+
+# model_path = "/user/jdy2003/NYCModel"
+# nyc_crime_model.save(model_path)
 
 
 spark.stop()
