@@ -217,12 +217,14 @@ print("about to train")
 # pipeline = Pipeline(stages=[assembler, lr])
 
 # train_data, test_data = filtered_crime_df.randomSplit([0.8,0.2], seed=45)
-# model = pipeline.fit(train_data)
-# predictions = model.transform(test_data)
+# nyc_crime_model = pipeline.fit(train_data)
+# predictions = nyc_crime_model.transform(test_data)
 # evaluator = RegressionEvaluator(labelCol="response_time_in_minutes", predictionCol="prediction", metricName="rmse")
 # rmse = evaluator.evaluate(predictions)
 # print("Root Mean Squared Error (RMSE):", rmse)
 
+# model_path = "/user/jdy2003/NYCModel"
+# nyc_crime_model.save(model_path)
 
 spark.stop()
 
