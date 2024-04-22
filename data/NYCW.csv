@@ -1,4 +1,4 @@
-Day,High (°F),Low (°F),Precip. (inches),Snow (inches)
+Day,high_in_F,low_in_F,precip_in_inches,snow_in_inches
 01/01/2023,55,49,0.00,0.0
 01/02/2023,56,49,0.02,0.0
 01/03/2023,58,47,0.42,0.0
