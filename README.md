@@ -39,3 +39,22 @@ now you can experiment with spark
   - Furthest West: 74.2540° W.
   - Center: roughly 40.7580° N, 73.9855° W
   - For the East/West ones remember to put a '-' before the longitude because it's West of the prime meridian
+
+
+  ## How to create and use the Virtual Environment
+  - Run the command ‘python -m venv myenv’ inside the sample dir
+  - Run this command ‘source myenv/bin/activate’ alsoin the sample dir
+  - When you first try to run the code inside the VE, it will yell at you - that you don’t have pyspark/pandas/etc
+  - Whenever it yells at you just run ‘pip3 install name_of_dependency’
+  - Make sure to use command line to run it, pressing run button will not work
+
+ ## How to run on the cluster correctly
+ - make sure you are on your master node
+ - go to sparkConf dir
+ - open the spark-defaults.conf, at the bottom of the file will be the spark URL for your master node
+    it should look something like htis "spark://albany.cs.colostate.edu:31580"
+ - check the cluster health by running ./monitor.sh found in the hadoopConf dir
+ - if everything is good, navigate to the directory that holds your script
+ - run this command: spark-submit --master YOUR-MASTER-URL model.py
+ - get a beer cause it takes a minute
+
