@@ -100,6 +100,9 @@ filtered_crime_df = filtered_crime_df.withColumn(
     calculate_response_time_udf(col(filtered_crime_columns[2]), col(filtered_crime_columns[3]))  # Pass entire row to UDF
 )
 
+# Filter out rows where response time in minutes is zero
+filtered_crime_df = filtered_crime_df.filter(col("response_time_in_minutes") > 0)
+
 # Show DataFrame with response_time column
 filtered_crime_df.show(5)
 
@@ -150,6 +153,8 @@ filtered_crime_df.show(5)
 # side length for nyc is 48km16
 # side length for NO is 22km
 #corners = get_grid_edges()
+
+
 
 def create_grid(xmin, xmax, ymin, ymax, width, height):
     rows = int(np.ceil((ymax-ymin) / height))
@@ -206,7 +211,7 @@ filtered_crime_df = filtered_crime_df.withColumn("Snow (inches)", col("Snow (inc
 
 # Check the schema to confirm the data type changes
 print("about to save frame")
-frame_path = "/user/jdy2003/nycFrame/"
+frame_path = "/user/harvin/nycFrame/"
 filtered_crime_df.write.format("csv").save(frame_path)
 print("write complete")
 
