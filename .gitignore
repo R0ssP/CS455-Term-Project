@@ -1,6 +1,7 @@
 
 sample/myenv/*
 sample/*.sh
+sample/__pycache__/*
 
 
 

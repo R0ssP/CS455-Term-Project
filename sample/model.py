@@ -1,7 +1,6 @@
-import sys
 from datetime import datetime
 
-import pyspark # type: ignore
+import pyspark 
 
 from pyspark.sql import SparkSession, Row
 
@@ -196,20 +195,23 @@ weather_df.show(10)
 
 filtered_crime_df = filtered_crime_df.join(weather_df, on='DATE', how='left')
 
+def date_to_day(date):
+    date = datetime.strptime(date, '%m/%d/%Y')
+    return date.timetuple().tm_yday
 
-
-filtered_crime_df = filtered_crime_df.filter(col("DATE").substr(7,4) != "2022")
-filtered_crime_df = filtered_crime_df.withColumn("High (°F)", col("High (°F)").cast("float"))
-filtered_crime_df = filtered_crime_df.withColumn("Low (°F)", col("Low (°F)").cast("float"))
-filtered_crime_df = filtered_crime_df.withColumn("`Precip. (inches)`", col("`Precip. (inches)`").cast("float"))
-filtered_crime_df = filtered_crime_df.withColumn("Snow (inches)", col("Snow (inches)").cast("float"))
+date_to_day_udf = udf(date_to_day, IntegerType())
 
 # Check the schema to confirm the data type changes
+filtered_crime_df = filtered_crime_df.na.drop()
+# call udf for the date stuff
+
+filtered_crime_df = filtered_crime_df.withColumn("DayOfYear", date_to_day_udf(filtered_crime_df["DATE"]))
 print("about to save frame")
 frame_path = "/user/jdy2003/nycFrame/"
-filtered_crime_df.write.format("csv").save(frame_path)
+filtered_crime_df.write.mode("overwrite").option("header", "true").csv(frame_path)
 print("write complete")
-
+filtered_crime_df.show(10)
+print(filtered_crime_df.count())
 
 
 # below is basically what should happen, I think it will run but don't have time to chcek rn
