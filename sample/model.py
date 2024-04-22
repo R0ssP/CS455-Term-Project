@@ -8,7 +8,7 @@ from datetime import datetime
 import pyspark # type: ignore
 from pyspark.sql import Row
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, lit, when, udf, date_format
+from pyspark.sql.functions import col,udf
 from pyspark.sql.types import IntegerType
 
 from pyspark.ml.feature import VectorAssembler
@@ -18,10 +18,9 @@ from pyspark.ml.evaluation import RegressionEvaluator
 
 
 from functools import reduce
-from Util import get_params, scrub_colum_array, get_file, calculate_response_time
-from gridgenerator import generate_grid;
+from Util import scrub_colum_array, calculate_response_time
+
 import geopandas as gpd
-import pandas
 import numpy as np
 from shapely.geometry import Polygon, Point
 
@@ -172,7 +171,7 @@ def create_grid(xmin, xmax, ymin, ymax, width, height):
     return grid
 
 
-crime_df = filtered_crime_df.toPandas()
+crime_df = filtered_crime_df.toPandas() #  sometimes causes out of memory error
 crime_df['geometry'] = crime_df.apply(lambda row: Point(row['Longitude'], row['Latitude']), axis=1)
 crime_gdf = gpd.GeoDataFrame(crime_df, geometry='geometry', crs={'init': 'epsg:4326'})
 
@@ -205,9 +204,11 @@ filtered_crime_df = filtered_crime_df.withColumn("`Precip. (inches)`", col("`Pre
 filtered_crime_df = filtered_crime_df.withColumn("Snow (inches)", col("Snow (inches)").cast("float"))
 
 # Check the schema to confirm the data type changes
-filtered_crime_df.printSchema()
-filtered_crime_df.show(500)
-print("about to train")
+print("about to save frame")
+frame_path = "/user/jdy2003/nycFrame/"
+filtered_crime_df.write.format("csv").save(frame_path)
+print("write complete")
+
 
 # below is basically what should happen, I think it will run but don't have time to chcek rn
 
