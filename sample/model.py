@@ -99,12 +99,13 @@ filtered_crime_df = filtered_crime_df.withColumn(
     calculate_response_time_udf(col(filtered_crime_columns[2]), col(filtered_crime_columns[3]))  # Pass entire row to UDF
 )
 
+filtered_crime_df = filtered_crime_df.filter(col("response_time_in_minutes") > 0)
+
 # Show DataFrame with response_time column
-filtered_crime_df.show(5)
 
 filtered_crime_df = filtered_crime_df.drop(filtered_crime_columns[2])
 filtered_crime_df = filtered_crime_df.drop(filtered_crime_columns[3])
-filtered_crime_df.show(5)
+
 
 
 # get the uniwue column first column values, write a udf to map the values to index for new column
@@ -123,10 +124,6 @@ filtered_crime_df = filtered_crime_df.withColumn(
     "event_type_value",
     map_event_type(unique_events)(col(filtered_crime_columns[1]))
 )
-
-filtered_crime_df.show(5)
-
-
 
 # # Select DATE, PRCP, TMIN, and TMAX columns from weather DataFrame
 # weather_df = weather_df.select("DATE", "PRCP", "TMIN", "TMAX")

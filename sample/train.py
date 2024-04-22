@@ -62,7 +62,7 @@ print("Root Mean Squared Error (RMSE):", rmse)
 
 
 model_path = "/user/jdy2003/NYCModel"
-nyc_crime_model.save(model_path)
+nyc_crime_model.write().overwrite().save(model_path)
 
 print("no way!")
 
