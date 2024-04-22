@@ -204,18 +204,13 @@ filtered_crime_df = filtered_crime_df.join(weather_df, on='DATE', how='left')
 
 
 filtered_crime_df = filtered_crime_df.filter(col("DATE").substr(7,4) != "2022")
-filtered_crime_df = filtered_crime_df.withColumn("High (°F)", col("High (°F)").cast("float"))
-filtered_crime_df = filtered_crime_df.withColumn("Low (°F)", col("Low (°F)").cast("float"))
-filtered_crime_df = filtered_crime_df.withColumn("`Precip. (inches)`", col("`Precip. (inches)`").cast("float"))
-filtered_crime_df = filtered_crime_df.withColumn("Snow (inches)", col("Snow (inches)").cast("float"))
+
 
 # Check the schema to confirm the data type changes
 print("about to save frame")
-frame_path = "/user/harvin/nycFrame/"
-filtered_crime_df.write.format("csv").save(frame_path)
+frame_path = "/user/jdy2003/nycFrame/"
+filtered_crime_df.write.mode("overwrite").format("csv").save(frame_path)
 print("write complete")
-
-
 
 # below is basically what should happen, I think it will run but don't have time to chcek rn
 
