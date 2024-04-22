@@ -209,7 +209,7 @@ filtered_crime_df = filtered_crime_df.filter(col("DATE").substr(7,4) != "2022")
 # Check the schema to confirm the data type changes
 print("about to save frame")
 frame_path = "/user/jdy2003/nycFrame/"
-filtered_crime_df.write.mode("overwrite").format("csv").save(frame_path)
+filtered_crime_df.write.mode("overwrite").option("header", "true").csv(frame_path)
 print("write complete")
 
 # below is basically what should happen, I think it will run but don't have time to chcek rn
