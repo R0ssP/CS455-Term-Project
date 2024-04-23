@@ -2,6 +2,6 @@
 sample/myenv/*
 sample/*.sh
 sample/__pycache__/*
-
+data/NYPD.csv
 
 
