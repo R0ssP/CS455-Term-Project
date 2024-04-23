@@ -22,14 +22,19 @@ from Util import  scrub_colum_array,  calculate_response_time
 import pandas
 import numpy as np
 from shapely.geometry import Polygon, Point
+from shapely import wkt
+#from geospark.sql.functions import ST_Within
+
+
 
 spark = SparkSession.builder \
 .master("local")\
 .appName('crime_solver')\
-.config("spark.executor.memory", "4g")\
+.config("spark.executor.memory", "32g")\
 .getOrCreate()
 
-spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
+spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "false")
+
 
 
 crime_df = spark.read.csv("NYPD.csv", header=True)
@@ -47,7 +52,7 @@ weather_df.show(5)
 # type of crime is 10, lat is 16, long is 17, dispatch is 13, arrival is 14, center latitude is 40.958, long is -73.9588
 
 
-paramIndexArray = [10,16,17,13,14]
+paramIndexArray =  [11,17,18,14,15]  #[10,16,17,13,14]
 
 column_list = crime_df.columns
 print(column_list)
@@ -96,6 +101,8 @@ filtered_crime_df = filtered_crime_df.withColumn(
 
 filtered_crime_df = filtered_crime_df.filter(col("response_time_in_minutes") > 0)
 
+filtered_crime_df.show(5)
+
 # Show DataFrame with response_time column
 
 filtered_crime_df = filtered_crime_df.drop(filtered_crime_columns[2])
@@ -120,24 +127,17 @@ filtered_crime_df = filtered_crime_df.withColumn(
     map_event_type(unique_events)(col(filtered_crime_columns[1]))
 )
 
-# # Select DATE, PRCP, TMIN, and TMAX columns from weather DataFrame
-# weather_df = weather_df.select("DATE", "PRCP", "TMIN", "TMAX")
+filtered_crime_df.show(10)
 
-# # Calculate the average of TMIN and TMAX and add as a new column 'TAVG'
-# weather_df = weather_df.withColumn("TAVG", (col("TMIN") + col("TMAX")) / 2)
+# Select DATE, PRCP, TMIN, and TMAX columns from weather DataFrame
+weather_df = weather_df.select("DATE", "PRCP", "TMIN", "TMAX")
 
-# # Join DataFrames on DATE column
-# final_weather_df = weather_df.select("DATE", "PRCP", "TAVG")
+# Calculate the average of TMIN and TMAX and add as a new column 'TAVG'
+weather_df = weather_df.withColumn("TAVG", (col("TMIN") + col("TMAX")) / 2)
 
-# final_weather_df = final_weather_df.withColumn("DATE", col("DATE").cast("date"))
-# final_weather_df = final_weather_df.withColumn("DATE", date_format(col("DATE"), "MM/dd/yyyy"))
-# final_weather_df = final_weather_df.filter(col("DATE").substr(7,3) == "202")
-# final_weather_df.show(10)
+# Join DataFrames on DATE column
+final_weather_df = weather_df.select("DATE", "PRCP", "TAVG")
 
-# function(s) for creating logical grid
-# side length for nyc is 48km16
-# side length for NO is 22km
-#corners = get_grid_edges()
 
 def create_grid(xmin, xmax, ymin, ymax, width, height):
     rows = int(np.ceil((ymax-ymin) / height))
@@ -194,14 +194,13 @@ date_to_day_udf = udf(date_to_day, IntegerType())
 filtered_crime_df = filtered_crime_df.na.drop()
 # call udf for the date stuff
 
-filtered_crime_df = filtered_crime_df.withColumn("DayOfYear", date_to_day_udf(filtered_crime_df["DATE"]))
-print("about to save frame")
-frame_path = "/user/jdy2003/nycFrame/"
-filtered_crime_df.write.mode("overwrite").option("header", "true").csv(frame_path)
-print("write complete")
-filtered_crime_df.show(10)
-print(filtered_crime_df.count())
-
+# filtered_crime_df = filtered_crime_df.withColumn("DayOfYear", date_to_day_udf(filtered_crime_df["DATE"]))
+# print("about to save frame")
+# frame_path = "/user/jdy2003/nycFrame/"
+# filtered_crime_df.write.mode("overwrite").option("header", "true").csv(frame_path)
+# print("write complete")
+# filtered_crime_df.show(10)
+# print(filtered_crime_df.count())
 
 spark.stop()
 
