@@ -32,15 +32,10 @@ spark = SparkSession.builder \
 spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
 
 
-
-
 crime_df = spark.read.csv("NYPD.csv", header=True)
 
-weather_df = spark.read.csv("NYCW.csv", header=True)
-weather_df = weather_df.withColumnRenamed("Day", "DATE")
+weather_df = spark.read.csv("NY_weather.csv", header=True)
 weather_df.show(5)
-
-
 
 
 # for new orleans the input is:
@@ -134,9 +129,6 @@ filtered_crime_df = filtered_crime_df.withColumn(
 # # Join DataFrames on DATE column
 # final_weather_df = weather_df.select("DATE", "PRCP", "TAVG")
 
-# # Write joined DataFrame to CSV
-
-# final_weather_df.write.csv("NY_weather_processed.csv", header=True, mode="overwrite")
 # final_weather_df = final_weather_df.withColumn("DATE", col("DATE").cast("date"))
 # final_weather_df = final_weather_df.withColumn("DATE", date_format(col("DATE"), "MM/dd/yyyy"))
 # final_weather_df = final_weather_df.filter(col("DATE").substr(7,3) == "202")
@@ -209,30 +201,6 @@ filtered_crime_df.write.mode("overwrite").option("header", "true").csv(frame_pat
 print("write complete")
 filtered_crime_df.show(10)
 print(filtered_crime_df.count())
-
-
-# below is basically what should happen, I think it will run but don't have time to chcek rn
-
-# feature_cols = ['event_type_value', 'zone', 'High (°F)', 'Low (°F)', 'Precip. (inches)', 'Snow (inches)']
-# assembler = VectorAssembler(inputCols=feature_cols, outputCol="features")
-# lr = LinearRegression(featuresCol="features", labelCol="response_time_in_minutes")
-# pipeline = Pipeline(stages=[assembler, lr])
-
-# train_data, test_data = filtered_crime_df.randomSplit([0.8,0.2], seed=45)
-
-# nyc_crime_model = pipeline.fit(train_data)
-# predictions = nyc_crime_model.transform(test_data)
-
-# model = pipeline.fit(train_data)
-# predictions = model.transform(test_data)
-
-# evaluator = RegressionEvaluator(labelCol="response_time_in_minutes", predictionCol="prediction", metricName="rmse")
-# rmse = evaluator.evaluate(predictions)
-# print("Root Mean Squared Error (RMSE):", rmse)
-
-
-# model_path = "/user/jdy2003/NYCModel"
-# nyc_crime_model.save(model_path)
 
 
 spark.stop()
