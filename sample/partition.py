@@ -12,31 +12,33 @@ spark = SparkSession.builder \
 massive_frame = spark.read.csv("/user/jdy2003/filteredFrame/", header=True)
 
 # Add a new column with a unique identifier to hash on
-massive_frame = massive_frame.withColumn("hash", F.rand(seed=42))
+massive_frame = massive_frame.withColumn("hash", F.rand(seed=45))
 
 # Perform hash partitioning based on the new column
 #massive_frame = massive_frame.repartition(4, "hash")
 
 # Drop the hash column
 # partitioned_frames = partitioned_frames.drop("hash")
+
+massive_frame = massive_frame.withColumn("hash", F.col("hash") * 50)
+
 massive_frame.show(10)
 
-massive_frame = massive_frame.withColumn("hash", F.col("hash") * 10)
-massive_frame.show(10)
 
 def map_partitions(hash_value):
     return hash_value
 
 map_partitions_udf = F.udf(map_partitions, IntegerType())
 
-massive_frame = massive_frame.withColumn("partition_id", F.col("hash").substr(1,1) % 3)
+massive_frame = massive_frame.withColumn("partition_id", F.col("hash").substr(1,1) % 4)
 massive_frame = massive_frame.drop(F.col("hash"))
-massive_frame.show(50)
 
 
+print('PRINTING COLUMN COUNT',massive_frame.count())
 
-# Save the partitioned DataFrames
-for i in range(3):
+massive_frame.show(100)
+
+for i in range(4):
     massive_frame.filter(F.col("partition_id") == float(i)) \
         .drop("partition_id") \
         .write \
@@ -44,8 +46,6 @@ for i in range(3):
         .option("header", "true") \
         .mode("overwrite") \
         .save("/user/jdy2003/partition_" + str(i))
-
-
 
 
 # crime_df = spark.read.csv("NYPD.csv", header=True)

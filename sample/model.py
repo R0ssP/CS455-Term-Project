@@ -2,7 +2,7 @@ from datetime import datetime
 
 import pyspark 
 
-from pyspark.sql import SparkSession, Row
+from pyspark.sql import SparkSession
 
 from pyspark.sql.functions import col,udf
 
@@ -15,14 +15,11 @@ from pyspark.ml import Pipeline
 from pyspark.ml.evaluation import RegressionEvaluator
 
 from functools import reduce
-from Util import scrub_colum_array, calculate_response_time
-import geopandas as gpd
-from Util import  scrub_colum_array,  calculate_response_time
 
+import geopandas as gpd
 import pandas
 import numpy as np
 from shapely.geometry import Polygon, Point
-from shapely import wkt
 #from geospark.sql.functions import ST_Within
 
 
@@ -36,26 +33,29 @@ spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "false")
 
 
 
-filtered_crime_df = spark.read.csv("partition_0", header=True)
-
-weather_df = spark.read.csv("NY_weather.csv", header=True)
-weather_df.show(5)
+filtered_crime_df = spark.read.csv("partition_3", header=True)
 
 
-# for new orleans the input is:
-# 1 zipcode 18 10 11
-# for NYPD the input is:
-# 10 longitude / latitude 16 17 13 14
 
 
-#filtered_crime_df.show(10)
-#print(filtered_crime_df.count())
+# weather_df = spark.read.csv("NY_weather.csv", header=True)
+# weather_df.show(5)
 
-# create the response time column
+
+# # for new orleans the input is:
+# # 1 zipcode 18 10 11
+# # for NYPD the input is:
+# # 10 longitude / latitude 16 17 13 14
+
+
+# #filtered_crime_df.show(10)
+# #print(filtered_crime_df.count())
+
+# # create the response time column
 
 filtered_crime_columns = list(filtered_crime_df.columns)
 print(filtered_crime_columns)
-filtered_crime_df.show(25)
+# filtered_crime_df.show(25)
 
 
 # get the uniwue column first column values, write a udf to map the values to index for new column
@@ -77,14 +77,14 @@ filtered_crime_df = filtered_crime_df.withColumn(
 
 filtered_crime_df.show(10)
 
-# Select DATE, PRCP, TMIN, and TMAX columns from weather DataFrame
-weather_df = weather_df.select("DATE", "PRCP", "TMIN", "TMAX")
+# # Select DATE, PRCP, TMIN, and TMAX columns from weather DataFrame
+# weather_df = weather_df.select("DATE", "PRCP", "TMIN", "TMAX")
 
-# Calculate the average of TMIN and TMAX and add as a new column 'TAVG'
-weather_df = weather_df.withColumn("TAVG", (col("TMIN") + col("TMAX")) / 2)
+# # Calculate the average of TMIN and TMAX and add as a new column 'TAVG'
+# weather_df = weather_df.withColumn("TAVG", (col("TMIN") + col("TMAX")) / 2)
 
-# Join DataFrames on DATE column
-final_weather_df = weather_df.select("DATE", "PRCP", "TAVG")
+# # Join DataFrames on DATE column
+# final_weather_df = weather_df.select("DATE", "PRCP", "TAVG")
 
 
 def create_grid(xmin, xmax, ymin, ymax, width, height):
@@ -107,7 +107,10 @@ def create_grid(xmin, xmax, ymin, ymax, width, height):
     return grid
 
 
+filtered_crime_df = filtered_crime_df.withColumn("Longitude", col("Longitude").cast("float"))
+filtered_crime_df = filtered_crime_df.withColumn("Latitude", col("Latitude").cast("float"))
 crime_df = filtered_crime_df.toPandas()
+
 crime_df['geometry'] = crime_df.apply(lambda row: Point(row['Longitude'], row['Latitude']), axis=1)
 crime_gdf = gpd.GeoDataFrame(crime_df, geometry='geometry', crs={'init': 'epsg:4326'})
 
@@ -125,7 +128,7 @@ filtered_crime_df.show(10)
 filtered_crime_df = filtered_crime_df.withColumnRenamed('index_right', 'zone')
 filtered_crime_df = filtered_crime_df.withColumnRenamed('INCIDENT_DATE', 'DATE')
 filtered_crime_df.show(10)
-weather_df.show(10)
+
 
 # filtered_crime_df = filtered_crime_df.join(weather_df, on='DATE', how='left')
 
@@ -138,9 +141,9 @@ date_to_day_udf = udf(date_to_day, IntegerType())
 filtered_crime_df = filtered_crime_df.na.drop()
 filtered_crime_df = filtered_crime_df.withColumn("DayOfYear", date_to_day_udf(filtered_crime_df["DATE"]))
 print("about to save frame")
-frame_path = "/user/jdy2003/iPartition_0/"
+frame_path = "/user/jdy2003/iPartition_3/"
 filtered_crime_df.write.mode("overwrite").option("header", "true").csv(frame_path)
 print("write complete")
-filtered_crime_df.show(10)
-#print(filtered_crime_df.count())gi
+filtered_crime_df.show(20)
+# #print(filtered_crime_df.count())
 spark.stop()
