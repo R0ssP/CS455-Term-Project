@@ -32,15 +32,11 @@ spark = SparkSession.builder \
 #spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "false")
 
 
-
 filtered_crime_df = spark.read.csv("partition_3", header=True)
-
-
 
 
 # weather_df = spark.read.csv("NY_weather.csv", header=True)
 # weather_df.show(5)
-
 
 # # for new orleans the input is:
 # # 1 zipcode 18 10 11

@@ -7,10 +7,13 @@ from pyspark.sql.functions import col, udf
 from pyspark.sql.types import IntegerType, StringType
 import matplotlib.pyplot as plt
 import seaborn as sns
+from shapely.geometry import Polygon, Point
+
+import os
+os.environ["PYSPARK_PYTHON"] = "/s/bach/j/under/jdy2003/miniconda3/bin/python3.12"
 
 # Initialize Spark session
 spark = SparkSession.builder \
-    .master("local") \
     .appName('Grid Income Heatmap') \
     .config("spark.executor.memory", "32g") \
     .getOrCreate()
@@ -27,10 +30,30 @@ mean_income = {
 # Assuming grid.py has a function called generate_grid that returns a DataFrame of grids
 # Each grid cell in DataFrame has 'min_lat', 'max_lat', 'min_lon', 'max_lon'
 # This function should ideally exist in grid.py and properly integrated here
-from model import create_grid
+def create_grid(xmin, xmax, ymin, ymax, width, height):
+    rows = int(np.ceil((ymax-ymin) / height))
+    cols = int(np.ceil((xmax-xmin) / width))
+    x_left = xmin
+    x_right = xmin + width
+    grid_cells = []
+    for i in range(cols):
+        y_top = ymax
+        y_bottom = ymax - height
+        for j in range(rows):
+            grid_cells.append(Polygon([(x_left, y_top), (x_right, y_top), (x_right, y_bottom), (x_left, y_bottom)]))
+            y_top = y_bottom
+            y_bottom = y_bottom - height
+        x_left = x_right
+        x_right = x_right + width
+    grid = gpd.GeoDataFrame(grid_cells, columns=['geometry'])
+    grid.crs = {'init': 'epsg:4326'}
+    return grid
 
 # Generate grid and simulate data
-grid_df = create_grid()
+xmin, xmax, ymin, ymax = -74.25559, -73.70001, 40.49612, 40.91553
+width = 0.01 
+height = 0.01
+grid_df = create_grid(xmin, xmax, ymin, ymax, width, height)
 
 # Function to determine borough based on coordinates
 def get_borough(lat, lon):
@@ -49,8 +72,8 @@ def get_borough(lat, lon):
 
 get_borough_udf = udf(get_borough, StringType())
 
-# Assign borough to each grid cell
-grid_df = grid_df.withColumn('borough', get_borough_udf(col('center_lat'), col('center_lon')))
+# Assign borough to each grid cell 
+grid_df = grid_df.withColumn('borough', get_borough_udf(col('latitude'), col('longitude')))
 
 # Map mean income to each grid cell
 mean_income_udf = udf(lambda b: mean_income.get(b, 0), IntegerType())
@@ -64,7 +87,7 @@ grid_pd = grid_df.toPandas()
 
 # Visualization
 plt.figure(figsize=(10, 10))
-sns.heatmap(grid_pd.pivot("center_lat", "center_lon", "request_time"), cmap='viridis')
+sns.heatmap(grid_pd.pivot("latitude", "longitude", "request_time"), cmap='viridis')
 plt.title('Heatmap of Request Times and Mean Income')
 plt.show()
 
