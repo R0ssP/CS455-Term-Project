@@ -11,69 +11,69 @@ from pyspark.ml.regression import GBTRegressor
 from pyspark.ml import Pipeline
 from pyspark.ml.evaluation import RegressionEvaluator
 import matplotlib.pyplot as plt
+from pyspark.ml.tuning import ParamGridBuilder, CrossValidator
 
 spark = SparkSession.builder.appName("train model").getOrCreate()
 
 crime_data = spark.read.csv("/user/jdy2003/nycFrame/", header=True)
 
-crash_data = spark.read.csv("/user/jdy2003/crashes/", header=True)
-crash_data = crash_data.orderBy(desc("accident_count"))
-crash_data.show(10)
-#crime_data.show(10)
+# column names that we gotta cast
+cast_columns = ['TAVG', 'PRCP', 'event_type_value', 'zone', 'DayOfYear',
+                'response_time_in_minutes', 'Latitude', 'Longitude', 'accident_count']
+for column in cast_columns:
+    crime_data = crime_data.withColumn(column, col(column).cast("float"))
 
-crime_data = crime_data.join(crash_data, ["DATE", "zone"], "left")
+# double check no null values exist
 
-# If there are null values in accident_count, fill them with 0
-# Filter crime data where response_time_in_minutes is less than 10
-crime_data = crime_data.filter(col("response_time_in_minutes") < 10)
-
-crime_data = crime_data.fillna("0", subset=["accident_count"])
-
-crime_data.show(10)
-
-crime_data = crime_data.withColumn("TAVG", col("TAVG").cast("float"))
-crime_data = crime_data.withColumn("PRCP", col("PRCP").cast("float"))
-crime_data = crime_data.withColumn("event_type_value", col("event_type_value").cast("float"))
-crime_data = crime_data.withColumn("zone", col("zone").cast("float"))
-crime_data = crime_data.withColumn("DayOfYear", col("DayOfYear").cast("float"))
-crime_data = crime_data.withColumn("response_time_in_minutes", col("response_time_in_minutes").cast("float"))
-crime_data = crime_data.withColumn("Latitude", col("Latitude").cast("float"))
-crime_data = crime_data.withColumn("Longitude", col("Longitude").cast("float"))
-crime_data = crime_data.withColumn("accident_count", col("accident_count").cast("float"))
-
-# # Check for non-numeric entries in the column
 crime_data.na.drop()
 
 feature_cols = ['event_type_value', 'zone','DayOfYear', 'TAVG', 'PRCP', 'accident_count']
 assembler = VectorAssembler(inputCols=feature_cols, outputCol="features")
-train_data, test_data = crime_data.randomSplit([0.8,0.2], seed=420)
-evaluator = RegressionEvaluator(labelCol="response_time_in_minutes", predictionCol="prediction", metricName="rmse")
-
-# XGBoost
 xgb = GBTRegressor(featuresCol="features", labelCol="response_time_in_minutes")
 
-pipeline_xgb = Pipeline(stages=[assembler, xgb])
+# Construct pipeline
+pipeline = Pipeline(stages=[assembler, xgb])
 
-model_xgb = pipeline_xgb.fit(train_data)
-predictions_xgb = model_xgb.transform(test_data)
+# Parameter grid for hyperparameter tuning
+paramGrid = ParamGridBuilder() \
+    .addGrid(xgb.maxDepth, [5, 10]) \
+    .addGrid(xgb.maxBins, [20, 40]) \
+    .build()
 
-evaluator_rmse = RegressionEvaluator(labelCol="response_time_in_minutes", predictionCol="prediction", metricName="rmse")
-rmse_xgb = evaluator_rmse.evaluate(predictions_xgb)
+# Define evaluator
+evaluator = RegressionEvaluator(labelCol="response_time_in_minutes", predictionCol="prediction", metricName="rmse")
 
-evaluator_r2 = RegressionEvaluator(labelCol="response_time_in_minutes", predictionCol="prediction",metricName="r2")
-r2_xgb = evaluator_r2.evaluate(predictions_xgb)
+# Cross-validation
+crossval = CrossValidator(estimator=pipeline,
+                          estimatorParamMaps=paramGrid,
+                          evaluator=evaluator,
+                          numFolds=5)  # Number of folds for cross-validation
 
-evaluator_ma = RegressionEvaluator(labelCol="response_time_in_minutes", predictionCol="prediction",metricName="mae")
-ma_xgb = evaluator_ma.evaluate(predictions_xgb)
+cvModel = crossval.fit(crime_data)
+
+evaluator_r2 = RegressionEvaluator(labelCol="response_time_in_minutes", predictionCol="prediction", metricName="r2")
+evaluator_mae = RegressionEvaluator(labelCol="response_time_in_minutes", predictionCol="prediction", metricName="mae")
+
+predictions = cvModel.transform(crime_data)
+rmse = evaluator.evaluate(predictions)
+r2 = evaluator_r2.evaluate(predictions)
+mae = evaluator_mae.evaluate(predictions)
+
+print("Root Mean Squared Error (RMSE):", rmse)
+
+best_model = cvModel.bestModel.stages[-1]  
+# Save the best model
+best_model_path = "/user/jdy2003/best_xgb_model"
+predictions.show(10)
+
+predictions = predictions.drop(col("features"))
+predictions.show(10)
+
+predictions.write.format("csv").option("header", "true").mode("overwrite").save("/user/jdy2003/predictions")
+
+print("Root Mean Squared Error (RMSE):", rmse)
+print("R squared value: ", r2)
+print("MAE score ", mae)
 
 
-# Save the model
-model_path = "/user/jdy2003/xgbModel"
-model_xgb.write().overwrite().save(model_path)
-
-print("no way!")
-print("XGBoost RMSE:", rmse_xgb)
-print("XGBoost R Squared: ", r2_xgb)
-print("XGBoost MAE: ", ma_xgb)
-predictions_xgb.show(10)
 spark.stop()

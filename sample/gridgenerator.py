@@ -1,8 +1,6 @@
 from geographiclib.geodesic import Geodesic
 import math
 
-
-
 def get_center():
     params = []
     while True:
