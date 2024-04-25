@@ -1,7 +1,8 @@
 from pyspark.sql import SparkSession
 import pyspark.sql.functions as F
 from Util import scrub_colum_array
-
+import os
+os.environ["PYSPARK_PYTHON"] = "/s/bach/j/under/jdy2003/miniconda3/bin/python3.12"
 
 spark = SparkSession.builder.appName("joinWithWeather").getOrCreate()
 

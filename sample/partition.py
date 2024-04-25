@@ -1,7 +1,8 @@
 from pyspark.sql import SparkSession
 import pyspark.sql.functions as F
 from pyspark.sql.types import IntegerType
-
+import os
+os.environ["PYSPARK_PYTHON"] = "/s/bach/j/under/jdy2003/miniconda3/bin/python3.12"
 
 # Initialize SparkSession
 spark = SparkSession.builder \

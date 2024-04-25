@@ -1,3 +1,5 @@
+import os
+os.environ["PYSPARK_PYTHON"] = "/s/bach/j/under/jdy2003/miniconda3/bin/python3.12"
 from datetime import datetime
 
 import pyspark 
@@ -24,12 +26,10 @@ from shapely.geometry import Polygon, Point
 
 
 spark = SparkSession.builder \
-.master("local")\
 .appName('crime_solver')\
-.config("spark.executor.memory", "8g")\
 .getOrCreate()
 
-spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "false")
+#spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "false")
 
 
 
