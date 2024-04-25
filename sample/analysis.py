@@ -18,7 +18,7 @@ model_schema = StructType([
 
 
 path_to_model = '/user/jdy2003/best_xgb_model'
-model = spark.read.schema(model_schema).parquet(path_to_model)
+predictions = spark.read.csv("/user/jdy2003/predictions", header=True)
 crime_data = spark.read.csv("/user/jdy2003/nycFrame", header=True)
 
 cast_columns = ['TAVG', 'PRCP', 'event_type_value', 'zone', 'DayOfYear',
@@ -26,15 +26,14 @@ cast_columns = ['TAVG', 'PRCP', 'event_type_value', 'zone', 'DayOfYear',
 for column in cast_columns:
     crime_data = crime_data.withColumn(column, F.col(column).cast("float"))
 
-predictions = model.transform(crime_data)
-predictions.createOrReplaceTempView("prediction_view")
+predictions.show()
 
-best_zones = spark.sql("SELECT zone, AVG(response_time_in_miutes) AS avg_response_time FROM prediction_view GROUP BY zone ORDER BY avg_response_time ASC LIMIT 10")
+best_zones = spark.sql("SELECT zone, AVG(response_time_in_miutes) AS avg_response_time FROM predictions GROUP BY zone ORDER BY avg_response_time ASC LIMIT 10")
 best_zones.show()
 
-worst_zones = spark.sql("SELECT zone, AVG(response_time_in_miutes) AS avg_response_time FROM prediction_view GROUP BY zone ORDER BY avg_response_time DESC LIMIT 10")
+worst_zones = spark.sql("SELECT zone, AVG(response_time_in_miutes) AS avg_response_time FROM predictions GROUP BY zone ORDER BY avg_response_time DESC LIMIT 10")
 worst_zones.show()
 
-most_frequent_types = spark.sql("SELECT event_type_value, COUNT(*) AS frequency FROM prediction_view GROUP BY event_type_value ORDER BY frequency DESC LIMIT 10")
-most_frequent_types.show()
+most_frequent_types = spark.sql("SELECT event_type_value, COUNT(*) AS frequency FROM predictions GROUP BY event_type_value ORDER BY frequency DESC LIMIT 10")
+spark.stop()
 
