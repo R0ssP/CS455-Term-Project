@@ -1,15 +1,15 @@
+import os
 import geopandas as gpd
 import pandas as pd
 import numpy as np
-from shapely.geometry import Point
+from shapely.geometry import Point, Polygon
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, udf
 from pyspark.sql.types import IntegerType, StringType
 import matplotlib.pyplot as plt
 import seaborn as sns
-from shapely.geometry import Polygon, Point
 
-import os
+# Setting the PySpark Python environment
 os.environ["PYSPARK_PYTHON"] = "/s/bach/j/under/jdy2003/miniconda3/bin/python3.12"
 
 # Initialize Spark session
@@ -27,33 +27,30 @@ mean_income = {
     'Staten Island': 122431
 }
 
-# Assuming grid.py has a function called generate_grid that returns a DataFrame of grids
-# Each grid cell in DataFrame has 'min_lat', 'max_lat', 'min_lon', 'max_lon'
-# This function should ideally exist in grid.py and properly integrated here
+# Create grid based on given geographical boundaries and cell dimensions
 def create_grid(xmin, xmax, ymin, ymax, width, height):
-    rows = int(np.ceil((ymax-ymin) / height))
-    cols = int(np.ceil((xmax-xmin) / width))
-    x_left = xmin
-    x_right = xmin + width
+    rows = int(np.ceil((ymax - ymin) / height))
+    cols = int(np.ceil((xmax - xmin) / width))
     grid_cells = []
-    for i in range(cols):
-        y_top = ymax
-        y_bottom = ymax - height
-        for j in range(rows):
-            grid_cells.append(Polygon([(x_left, y_top), (x_right, y_top), (x_right, y_bottom), (x_left, y_bottom)]))
-            y_top = y_bottom
-            y_bottom = y_bottom - height
-        x_left = x_right
-        x_right = x_right + width
+    for col_index in range(cols):
+        for row_index in range(rows):
+            x_left = xmin + col_index * width
+            y_top = ymax - row_index * height
+            grid_cells.append(Polygon([
+                (x_left, y_top),
+                (x_left + width, y_top),
+                (x_left + width, y_top - height),
+                (x_left, y_top - height)
+            ]))
     grid = gpd.GeoDataFrame(grid_cells, columns=['geometry'])
     grid.crs = {'init': 'epsg:4326'}
     return grid
 
-# Generate grid and simulate data
+# Parameters for grid creation
 xmin, xmax, ymin, ymax = -74.25559, -73.70001, 40.49612, 40.91553
-width = 0.01 
-height = 0.01
-grid_df = create_grid(xmin, xmax, ymin, ymax, width, height)
+width = 0.01  # Approx 1.1 km in longitude degrees
+height = 0.01  # Approx 1.1 km in latitude degrees
+grid_gdf = create_grid(xmin, xmax, ymin, ymax, width, height)
 
 # Function to determine borough based on coordinates
 def get_borough(lat, lon):
@@ -70,9 +67,17 @@ def get_borough(lat, lon):
     else:
         return 'Unknown'
 
+# Convert GeoDataFrame to Spark DataFrame
+grid_df = spark.createDataFrame(grid_gdf)
+
+# Define UDF for getting borough
 get_borough_udf = udf(get_borough, StringType())
 
-# Assign borough to each grid cell 
+# Add a centroid column for each polygon for determining the borough
+grid_df = grid_df.withColumn('latitude', col('geometry').centroid.y)
+grid_df = grid_df.withColumn('longitude', col('geometry').centroid.x)
+
+# Assign borough to each grid cell
 grid_df = grid_df.withColumn('borough', get_borough_udf(col('latitude'), col('longitude')))
 
 # Map mean income to each grid cell
@@ -80,10 +85,10 @@ mean_income_udf = udf(lambda b: mean_income.get(b, 0), IntegerType())
 grid_df = grid_df.withColumn('mean_income', mean_income_udf(col('borough')))
 
 # Simulate request time data
-grid_df = grid_df.withColumn('request_time', (col('mean_income') / 1000).cast(IntegerType()))  # Simplified simulation
+grid_df = grid_df.withColumn('request_time', (col('mean_income') / 1000).cast(IntegerType()))
 
 # Convert to Pandas for visualization
-grid_pd = grid_df.toPandas()
+grid_pd = grid_df.select('latitude', 'longitude', 'request_time').toPandas()
 
 # Visualization
 plt.figure(figsize=(10, 10))
