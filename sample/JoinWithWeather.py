@@ -11,10 +11,10 @@ crime_df = spark.read.csv("iPartition_3", header=True)
 weather_df = spark.read.csv("NY_weather.csv", header=True)
 weather_df = weather_df.select("DATE", "PRCP", "TMIN", "TMAX")
 
-# Calculate the average of TMIN and TMAX and add as a new column 'TAVG'
+# calculate the average of TMIN and TMAX and add as a new column 'TAVG'
 weather_df = weather_df.withColumn("TAVG", (F.col("TMIN") + F.col("TMAX")) / 2)
 
-# Join DataFrames on DATE column
+# join frames on DATE
 final_weather_df = weather_df.select("DATE", "PRCP", "TAVG")
 final_weather_df = final_weather_df.withColumn("DATE", F.date_format(F.col("DATE"), "MM/dd/yyyy"))
 

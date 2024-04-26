@@ -8,8 +8,9 @@ from pyspark.sql.functions import col, desc
 
 from pyspark.ml.feature import VectorAssembler
 from pyspark.ml.regression import GBTRegressor
+from pyspark.ml.classification import MultilayerPerceptronClassifier
 from pyspark.ml import Pipeline
-from pyspark.ml.evaluation import RegressionEvaluator
+from pyspark.ml.evaluation import MulticlassClassificationEvaluator, RegressionEvaluator
 import matplotlib.pyplot as plt
 from pyspark.ml.tuning import ParamGridBuilder, CrossValidator
 
@@ -27,23 +28,23 @@ for column in cast_columns:
 
 crime_data.na.drop()
 
+crime_data.show(10)
+
 feature_cols = ['event_type_value', 'zone','DayOfYear', 'TAVG', 'PRCP', 'accident_count']
 assembler = VectorAssembler(inputCols=feature_cols, outputCol="features")
+
 xgb = GBTRegressor(featuresCol="features", labelCol="response_time_in_minutes")
 
-# Construct pipeline
 pipeline = Pipeline(stages=[assembler, xgb])
 
-# Parameter grid for hyperparameter tuning
+# below builds a parameter grid to search the hyperparam space for optimal combinations
 paramGrid = ParamGridBuilder() \
     .addGrid(xgb.maxDepth, [5, 10]) \
     .addGrid(xgb.maxBins, [20, 40]) \
     .build()
 
-# Define evaluator
 evaluator = RegressionEvaluator(labelCol="response_time_in_minutes", predictionCol="prediction", metricName="rmse")
 
-# Cross-validation
 crossval = CrossValidator(estimator=pipeline,
                           estimatorParamMaps=paramGrid,
                           evaluator=evaluator,
@@ -61,8 +62,8 @@ mae = evaluator_mae.evaluate(predictions)
 
 print("Root Mean Squared Error (RMSE):", rmse)
 
-best_model = cvModel.bestModel.stages[-1]  
-# Save the best model
+best_model = cvModel.bestModel.stages[-1]  #  that grabs the best model found by the cross val and param grid
+
 best_model_path = "/user/jdy2003/best_xgb_model"
 predictions.show(10)
 

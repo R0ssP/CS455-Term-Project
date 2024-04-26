@@ -31,11 +31,22 @@ nycCrime = nycCrime.join(crash_data, ["DATE", "zone"], "left")
 
 nycCrime = nycCrime.fillna("0", subset=["accident_count"])
 
-nycCrime = nycCrime.filter(F.col("response_time_in_minutes") < 12)
+nycCrime = nycCrime.filter(F.col("response_time_in_minutes") < 10)
 
-nycCrime.show(10)
-# perform the join with the crash data
-print("PRINTING COUNT INFORMATION")
-print(p0count, " " , p1count, " ", p2count, " ", p3count)
-nycCrime.write.mode("overwrite").option("header","true").csv("/user/jdy2003/nycFrame")
+# Order the distinct event_type values in descending order
+
+# Show the result
+
+mapping_expression = (
+    F.when(F.col("TYP_DESC").contains("AMBULANCE"),0)
+    .when(F.col("TYP_DESC").contains("VEHICLE ACCIDENT"),1)
+    .when(F.col("TYP_DESC").contains("FIRE"),2)
+    .otherwise(3) #  this is a police response
+)
+
+nycCrime = nycCrime.withColumn("event_type_value", mapping_expression)
+
+# print("PRINTING COUNT INFORMATION")
+# print(p0count, " " , p1count, " ", p2count, " ", p3count)
+nycCrime.write.mode("overwrite").option("header","true").csv("/user/jdy2003/nycFrameTest")
 

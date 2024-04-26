@@ -9,7 +9,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import col,udf
 
 
-from pyspark.sql.types import IntegerType
+from pyspark.sql.types import IntegerType, StructType, FloatType, StringType, StructField
 
 from pyspark.ml.feature import VectorAssembler
 from pyspark.ml.regression import LinearRegression
@@ -19,7 +19,7 @@ from pyspark.ml.evaluation import RegressionEvaluator
 from functools import reduce
 
 import geopandas as gpd
-import pandas
+import pandas as pd
 import numpy as np
 from shapely.geometry import Polygon, Point
 #from geospark.sql.functions import ST_Within
@@ -29,25 +29,7 @@ spark = SparkSession.builder \
 .appName('crime_solver')\
 .getOrCreate()
 
-#spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "false")
-
-
 filtered_crime_df = spark.read.csv("partition_3", header=True)
-
-
-# weather_df = spark.read.csv("NY_weather.csv", header=True)
-# weather_df.show(5)
-
-# # for new orleans the input is:
-# # 1 zipcode 18 10 11
-# # for NYPD the input is:
-# # 10 longitude / latitude 16 17 13 14
-
-
-# #filtered_crime_df.show(10)
-# #print(filtered_crime_df.count())
-
-# # create the response time column
 
 filtered_crime_columns = list(filtered_crime_df.columns)
 print(filtered_crime_columns)
@@ -72,16 +54,6 @@ filtered_crime_df = filtered_crime_df.withColumn(
 )
 
 filtered_crime_df.show(10)
-
-# # Select DATE, PRCP, TMIN, and TMAX columns from weather DataFrame
-# weather_df = weather_df.select("DATE", "PRCP", "TMIN", "TMAX")
-
-# # Calculate the average of TMIN and TMAX and add as a new column 'TAVG'
-# weather_df = weather_df.withColumn("TAVG", (col("TMIN") + col("TMAX")) / 2)
-
-# # Join DataFrames on DATE column
-# final_weather_df = weather_df.select("DATE", "PRCP", "TAVG")
-
 
 def create_grid(xmin, xmax, ymin, ymax, width, height):
     rows = int(np.ceil((ymax-ymin) / height))
@@ -115,7 +87,15 @@ xmin, xmax, ymin, ymax = -74.25559, -73.70001, 40.49612, 40.91553
 width = 0.01  # width of a grid cell in longitude degrees, adjust as necessary about 1.1km
 height = 0.01  # height of a grid cell in latitude degrees, adjust as necessary
 grid = create_grid(xmin, xmax, ymin, ymax, width, height)
+print(grid.head(20))
 crime_with_grid = gpd.sjoin(crime_gdf, grid, how="inner", op='within')
+print(crime_with_grid['geometry'])
+
+def extract_center_coords(point):
+    return point.y, point.x
+
+
+crime_with_grid[['zone_lat','zone_lon']] = crime_with_grid['geometry'].apply(lambda point: pd.Series(extract_center_coords(point)))
 crime_with_grid = crime_with_grid.drop("geometry", axis=1)
 
 filtered_crime_df = spark.createDataFrame(crime_with_grid)
@@ -141,5 +121,5 @@ frame_path = "/user/jdy2003/iPartition_3/"
 filtered_crime_df.write.mode("overwrite").option("header", "true").csv(frame_path)
 print("write complete")
 filtered_crime_df.show(20)
-# #print(filtered_crime_df.count())
+#print(filtered_crime_df.count())
 spark.stop()
