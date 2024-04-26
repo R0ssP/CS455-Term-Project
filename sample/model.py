@@ -13,10 +13,7 @@ from pyspark.sql.types import IntegerType, StructType, FloatType, StringType, St
 
 from pyspark.ml.feature import VectorAssembler
 from pyspark.ml.regression import LinearRegression
-from pyspark.ml import Pipeline
 from pyspark.ml.evaluation import RegressionEvaluator
-
-from functools import reduce
 
 import geopandas as gpd
 import pandas as pd

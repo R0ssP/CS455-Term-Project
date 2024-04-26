@@ -1,8 +1,6 @@
 from pyspark.sql import SparkSession
 import pyspark.sql.functions as F
 from pyspark.sql.types import StructType, StructField, StringType, FloatType
-import matplotlib.pyplot as plt
-import tempfile
 from pyspark.ml.feature import VectorAssembler
 from pyspark.ml.regression import LinearRegression
 
@@ -36,13 +34,13 @@ worst_zones.show()
 # BELOW IS THE VISUALIZATION
 
 # predictions_pandas = predictions.select("prediction", "response_time_in_minutes").toPandas() # gets the fields we want
-# plt.figure(figsize=(8, 6)) # 10 inches by 6 inches yo
+# plt.figure(figsize=(8, 6)) # 8 inches by 6 inches yo
 # plt.scatter(predictions_pandas["prediction"], predictions_pandas["response_time_in_minutes"], alpha=0.5) # alpha = .5 is semitransparent markers
 # plt.xlabel("Predicted Response Time (minutes)")
 # plt.ylabel("Actual Response Time (minutes)")
 # plt.title("Scatter Plot: Predicted vs Actual Response Time")
 
-# temp_dir = tempfile.mkdtemp()
+# temp_dir = "/s/bach/j/under/jdy2003/scatter/scatter_plot.png"
 # plot_path = os.path.join(temp_dir, "scatter_plot.png")
 # plt.savefig(plot_path, format='png')
 
@@ -77,6 +75,7 @@ print("Feature Coefficients:")
 coefficients = model.coefficients
 for i, col in enumerate(assembler.getInputCols()):
     print(f"{col}: {coefficients[i]}")
+
 
 
 spark.stop()

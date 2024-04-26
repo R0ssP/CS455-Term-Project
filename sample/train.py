@@ -11,8 +11,9 @@ from pyspark.ml.regression import GBTRegressor
 from pyspark.ml.classification import MultilayerPerceptronClassifier
 from pyspark.ml import Pipeline
 from pyspark.ml.evaluation import MulticlassClassificationEvaluator, RegressionEvaluator
-import matplotlib.pyplot as plt
 from pyspark.ml.tuning import ParamGridBuilder, CrossValidator
+from pyspark.ml.feature import StandardScaler
+from pyspark.ml.clustering import KMeans
 
 spark = SparkSession.builder.appName("train model").getOrCreate()
 
@@ -28,53 +29,130 @@ for column in cast_columns:
 
 crime_data.na.drop()
 
-crime_data.show(10)
-
 feature_cols = ['event_type_value', 'zone','DayOfYear', 'TAVG', 'PRCP', 'accident_count']
+
 assembler = VectorAssembler(inputCols=feature_cols, outputCol="features")
+data_features = assembler.transform(crime_data)
 
-xgb = GBTRegressor(featuresCol="features", labelCol="response_time_in_minutes")
+scaler = StandardScaler(inputCol="features", outputCol="scaled_features", withStd=True, withMean=True)
+scaled_data = scaler.fit(data_features).transform(data_features)
 
-pipeline = Pipeline(stages=[assembler, xgb])
+# k means model defined below
+kmeans = KMeans(featuresCol="scaled_features", predictionCol="cluster_prediction", k=6, seed=123)
 
-# below builds a parameter grid to search the hyperparam space for optimal combinations
+# below fits the model
+kmeans_model = kmeans.fit(scaled_data)
+
+# gets predictions of the clusters
+clustered_data = kmeans_model.transform(scaled_data)
+
+# incorporate cluster predictions into feature set!
+cluster_features = ['cluster_prediction']
+final_feature_cols = feature_cols + cluster_features
+assembler = VectorAssembler(inputCols=final_feature_cols, outputCol="final_features")
+final_data = assembler.transform(clustered_data)
+
+gbt = GBTRegressor(featuresCol="final_features", labelCol="response_time_in_minutes")
+
+# Define parameter grid for hyperparameter tuning
 paramGrid = ParamGridBuilder() \
-    .addGrid(xgb.maxDepth, [5, 10]) \
-    .addGrid(xgb.maxBins, [20, 40]) \
+    .addGrid(gbt.maxDepth, [5, 10]) \
+    .addGrid(gbt.maxBins, [20, 40]) \
+    .addGrid(gbt.minInstancesPerNode, [1, 10]) \
+    .addGrid(gbt.minInfoGain, [0.01, 0.001]) \
+    .addGrid(gbt.subsamplingRate, [0.5, 0.75]) \
     .build()
 
-evaluator = RegressionEvaluator(labelCol="response_time_in_minutes", predictionCol="prediction", metricName="rmse")
-
-crossval = CrossValidator(estimator=pipeline,
-                          estimatorParamMaps=paramGrid,
-                          evaluator=evaluator,
-                          numFolds=5)  # Number of folds for cross-validation
-
-cvModel = crossval.fit(crime_data)
-
-evaluator_r2 = RegressionEvaluator(labelCol="response_time_in_minutes", predictionCol="prediction", metricName="r2")
+# Define evaluator
+evaluator_rmse = RegressionEvaluator(labelCol="response_time_in_minutes", predictionCol="prediction", metricName="rmse")
 evaluator_mae = RegressionEvaluator(labelCol="response_time_in_minutes", predictionCol="prediction", metricName="mae")
+evaluator_r2 = RegressionEvaluator(labelCol="response_time_in_minutes", predictionCol="prediction", metricName="r2")
 
-predictions = cvModel.transform(crime_data)
-rmse = evaluator.evaluate(predictions)
-r2 = evaluator_r2.evaluate(predictions)
+# Define cross-validator
+crossval = CrossValidator(estimator=gbt,
+                          estimatorParamMaps=paramGrid,
+                          evaluator=evaluator_rmse,
+                          numFolds=7)  # Number of folds for cross-validation
+
+# use cross validation to fit
+cvModel = crossval.fit(final_data)
+
+# evaluate
+predictions = cvModel.transform(final_data)
+rmse = evaluator_rmse.evaluate(predictions)
 mae = evaluator_mae.evaluate(predictions)
+r2 = evaluator_r2.evaluate(predictions)
 
+best_model = cvModel.bestModel
+best_model_path = "/user/jdy2003/best_gbt_model"
+predictions_path = "/user/jdy2003/predictions1"
+
+predictions.show(20)
+
+output_df = predictions.select(
+    "event_type_value", 
+    "zone", 
+    "DayOfYear", 
+    "TAVG", 
+    "PRCP", 
+    "accident_count", 
+    "cluster_prediction", 
+    "prediction", 
+    "response_time_in_minutes"
+)
+
+best_model.write().overwrite().save(best_model_path)
+output_df.write.mode("overwrite").option("header", "true").csv(predictions_path)
+
+# show the metrics
 print("Root Mean Squared Error (RMSE):", rmse)
+print("Mean Absolute Error (MAE):", mae)
+print("R-squared (R^2) Value:", r2)
+# Stop Spark session
+spark.stop()
 
-best_model = cvModel.bestModel.stages[-1]  #  that grabs the best model found by the cross val and param grid
+# xgb = GBTRegressor(featuresCol="features", labelCol="response_time_in_minutes")
 
-best_model_path = "/user/jdy2003/best_xgb_model"
-predictions.show(10)
+# pipeline = Pipeline(stages=[assembler, xgb])
 
-predictions = predictions.drop(col("features"))
-predictions.show(10)
+# # below builds a parameter grid to search the hyperparam space for optimal combinations
+# paramGrid = ParamGridBuilder() \
+#     .addGrid(xgb.maxDepth, [5, 10]) \
+#     .addGrid(xgb.maxBins, [20, 40]) \
+#     .build()
 
-predictions.write.format("csv").option("header", "true").mode("overwrite").save("/user/jdy2003/predictions")
+# evaluator = RegressionEvaluator(labelCol="response_time_in_minutes", predictionCol="prediction", metricName="rmse")
 
-print("Root Mean Squared Error (RMSE):", rmse)
-print("R squared value: ", r2)
-print("MAE score ", mae)
+# crossval = CrossValidator(estimator=pipeline,
+#                           estimatorParamMaps=paramGrid,
+#                           evaluator=evaluator,
+#                           numFolds=5)  # Number of folds for cross-validation
+
+# cvModel = crossval.fit(crime_data)
+
+# evaluator_r2 = RegressionEvaluator(labelCol="response_time_in_minutes", predictionCol="prediction", metricName="r2")
+# evaluator_mae = RegressionEvaluator(labelCol="response_time_in_minutes", predictionCol="prediction", metricName="mae")
+
+# predictions = cvModel.transform(crime_data)
+# rmse = evaluator.evaluate(predictions)
+# r2 = evaluator_r2.evaluate(predictions)
+# mae = evaluator_mae.evaluate(predictions)
+
+# print("Root Mean Squared Error (RMSE):", rmse)
+
+# best_model = cvModel.bestModel.stages[-1]  #  that grabs the best model found by the cross val and param grid
+
+# best_model_path = "/user/jdy2003/best_xgb_model"
+# predictions.show(10)
+
+# predictions = predictions.drop(col("features"))
+# predictions.show(10)
+
+# predictions.write.format("csv").option("header", "true").mode("overwrite").save("/user/jdy2003/predictions")
+
+# print("Root Mean Squared Error (RMSE):", rmse)
+# print("R squared value: ", r2)
+# print("MAE score ", mae)
 
 
 spark.stop()
