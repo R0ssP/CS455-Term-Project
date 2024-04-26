@@ -1,7 +1,7 @@
 
-sample/myenv/*
-sample/*.sh
-sample/__pycache__/*
+model/myenv/*
+model/*.sh
+model/__pycache__/*
 data/NYPD.csv
 
 
